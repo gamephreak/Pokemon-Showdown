@@ -451,18 +451,12 @@ class ModdedDex {
 	 * all, that's not a feature TypeScript needs to know about.
 	 */
 	getEffect(name?: string | Effect | null): PureEffect {
-		if (!name) {
-			return nullEffect;
-		}
-		if (typeof name !== 'string') {
-			return name as PureEffect;
-		}
+		if (!name) return nullEffect;
+		if (typeof name !== 'string') return name as PureEffect;
 
-		let id = toId(name);
+		const id = toId(name);
 		let effect = this.effectCache.get(id);
-		if (effect) {
-			return effect as PureEffect;
-		}
+		if (effect) return effect as PureEffect;
 
 		if (name.startsWith('move:')) {
 			effect = this.getMove(name.slice(5));
@@ -477,6 +471,23 @@ class ModdedDex {
 			return effect;
 		}
 
+		return this.getEffectInternal(id, name, true);
+	}
+
+	/**
+	 * While this function can technically return any kind of effect at
+	 * all, that's not a feature TypeScript needs to know about.
+	 */
+	getEffectInternal(id: ID, name?: string | Effect | null, skip = false): PureEffect {
+		if (!skip) {
+			if (!name) return nullEffect;
+			if (typeof name !== 'string') return name as PureEffect;
+
+			let eff = this.effectCache.get(id);
+			if (eff) return eff as PureEffect;
+		}
+
+		let effect;
 		let found;
 		if (this.data.Formats.hasOwnProperty(id)) {
 			effect = new Data.Format({name}, this.data.Formats[id]);
