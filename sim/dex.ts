@@ -129,15 +129,15 @@ class ModdedDex {
 	parentMod: string;
 	dataCache: DexTableData | null;
 	formatsCache: DexTable<Format> | null;
-	templateCache: Map<string, Template>;
-	moveCache: Map<string, Move>;
-	itemCache: Map<string, Item>;
-	abilityCache: Map<string, Ability>;
+	templateCache: Map<ID, Template>;
+	moveCache: Map<ID, Move>;
+	itemCache: Map<ID, Item>;
+	abilityCache: Map<ID, Ability>;
 	typeCache: Map<string, TypeInfo>;
-	effectCache: Map<string, Effect | Move>;
+	effectCache: Map<ID, Effect | Move>;
 	modsLoaded: boolean;
 	getString: (str: any) => string;
-	getId: (text: any) => string;
+	getId: (text: any) => ID;
 	ModdedDex: typeof ModdedDex;
 	Data: typeof Data;
 
@@ -316,9 +316,9 @@ class ModdedDex {
 		name = (name || '').trim();
 		let id = toId(name);
 		if (id === 'nidoran' && name.slice(-1) === '♀') {
-			id = 'nidoranf';
+			id = 'nidoranf' as ID;
 		} else if (id === 'nidoran' && name.slice(-1) === '♂') {
-			id = 'nidoranm';
+			id = 'nidoranm' as ID;
 		}
 		let template: any = this.templateCache.get(id);
 		if (template) return template;
@@ -530,7 +530,7 @@ class ModdedDex {
 			id = toId(name);
 		}
 		if (this.data.Formats.hasOwnProperty('gen7' + id)) {
-			id = 'gen7' + id;
+			id = 'gen7' + id as ID;
 		}
 		let supplementaryAttributes: AnyObject | null = null;
 		if (name.includes('@@@')) {
@@ -619,16 +619,16 @@ class ModdedDex {
 			return name;
 		}
 		let id = toId(name);
-		id = id.charAt(0).toUpperCase() + id.substr(1);
-		let type = this.typeCache.get(id);
+		let typeName= id.charAt(0).toUpperCase() + id.substr(1);
+		let type = this.typeCache.get(typeName);
 		if (type) return type;
-		if (id && this.data.TypeChart.hasOwnProperty(id)) {
-			type = new Data.TypeInfo({id}, this.data.TypeChart[id]);
+		if (typeName && this.data.TypeChart.hasOwnProperty(typeName)) {
+			type = new Data.TypeInfo({typeName}, this.data.TypeChart[typeName]);
 		} else {
 			type = new Data.TypeInfo({name, exists: false, effectType: 'EffectType'});
 		}
 
-		if (type.exists) this.typeCache.set(id, type);
+		if (type.exists) this.typeCache.set(typeName, type);
 		return type;
 	}
 
@@ -753,11 +753,11 @@ class ModdedDex {
 			if (typeof ruleSpec !== 'string') {
 				if (ruleSpec[0] === 'complexTeamBan') {
 					// @ts-ignore
-					let complexTeamBan: [string, string, number, string[]] = ruleSpec.slice(1);
+					let complexTeamBan: [ID, string, number, string[]] = ruleSpec.slice(1);
 					ruleTable.addComplexTeamBan(complexTeamBan[0], complexTeamBan[1], complexTeamBan[2], complexTeamBan[3]);
 				} else if (ruleSpec[0] === 'complexBan') {
 					// @ts-ignore
-					let complexBan: [string, string, number, string[]] = ruleSpec.slice(1);
+					let complexBan: [ID, string, number, string[]] = ruleSpec.slice(1);
 					ruleTable.addComplexBan(complexBan[0], complexBan[1], complexBan[2], complexBan[3]);
 				} else {
 					throw new Error(`Unrecognized rule spec ${ruleSpec}`);
@@ -851,7 +851,7 @@ class ModdedDex {
 		for (const matchType of matchTypes) {
 			if (rule.slice(0, 1 + matchType.length) === matchType + ':') {
 				matchTypes = [matchType];
-				id = id.slice(matchType.length);
+				id = id.slice(matchType.length) as ID;
 				break;
 			}
 		}
@@ -890,7 +890,7 @@ class ModdedDex {
 				}
 				matches.push(matchType + ':' + id);
 			} else if (matchType === 'pokemon' && id.slice(-4) === 'base') {
-				id = id.slice(0, -4);
+				id = id.slice(0, -4) as ID;
 				if (table.hasOwnProperty(id)) {
 					matches.push('pokemon:' + id);
 				}

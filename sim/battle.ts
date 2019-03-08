@@ -25,7 +25,7 @@ interface PlayerOptions {
 }
 
 interface BattleOptions {
-	formatid: string; // Format ID
+	formatid: ID; // Format ID
 	send?: (type: string, data: string | string[]) => void; // Output callback
 	prng?: PRNG; // PRNG override (you usually don't need this, just pass a seed)
 	seed?: PRNGSeed; // PRNG seed
@@ -36,7 +36,7 @@ interface BattleOptions {
 }
 
 export class Battle extends Dex.ModdedDex {
-	id: string;
+	id: ID;
 	zMoveTable: {[k: string]: string};
 	log: string[];
 	inputLog: string[];
@@ -44,18 +44,18 @@ export class Battle extends Dex.ModdedDex {
 	sentEnd: boolean;
 	sides: Side[];
 	rated: boolean | string;
-	weatherData: AnyObject;
-	terrainData: AnyObject;
+	weatherData: AnyObjectWithID;
+	terrainData: AnyObjectWithID;
 	pseudoWeather: AnyObject;
 	format: string;
-	formatid: string;
+	formatid: ID;
 	cachedFormat: Format;
 	debugMode: boolean;
 	formatData: AnyObject;
 	effect: Effect;
-	effectData: AnyObject;
+	effectData: AnyObjectWithID;
 	event: AnyObject;
-	itemData: AnyObject;
+	itemData: AnyObjectWithID;
 	gameType: GameType;
 	reportExactHP: boolean;
 	queue: Actions["Action"][];
@@ -66,8 +66,8 @@ export class Battle extends Dex.ModdedDex {
 	p1: Side;
 	p2: Side;
 	lastUpdate: number;
-	weather: string;
-	terrain: string;
+	weather: ID;
+	terrain: ID;
 	ended: boolean;
 	started: boolean;
 	active: boolean;
@@ -99,7 +99,7 @@ export class Battle extends Dex.ModdedDex {
 		super(format.mod);
 		this.zMoveTable = {};
 		Object.assign(this, this.data.Scripts);
-		this.id = '';
+		this.id = '' as ID;
 		this.log = [];
 		this.inputLog = [];
 		this.sentLogPos = 0;
@@ -108,8 +108,8 @@ export class Battle extends Dex.ModdedDex {
 		this.sides = [null, null];
 		// @ts-ignore
 		this.rated = options.rated;
-		this.weatherData = {id: ''};
-		this.terrainData = {id: ''};
+		this.weatherData = {id: '' as ID};
+		this.terrainData = {id: '' as ID};
 		this.pseudoWeather = {};
 		this.format = format.id;
 		this.formatid = options.formatid;
@@ -117,10 +117,10 @@ export class Battle extends Dex.ModdedDex {
 		this.debugMode = format.debug || !!options.debug;
 		this.formatData = {id: format.id};
 		// tslint:disable-next-line:no-object-literal-type-assertion
-		this.effect = {id: ''} as Effect;
-		this.effectData = {id: ''};
+		this.effect = {id: '' as ID} as Effect;
+		this.effectData = {id: '' as ID};
 		this.event = {id: ''};
-		this.itemData = {id: ''};
+		this.itemData = {id: '' as ID};
 		this.gameType = (format.gameType || 'singles');
 		this.reportExactHP = !!format.debug;
 		this.queue = [];
@@ -133,8 +133,8 @@ export class Battle extends Dex.ModdedDex {
 		// @ts-ignore
 		this.p2 = null;
 		this.lastUpdate = 0;
-		this.weather = '';
-		this.terrain = '';
+		this.weather = '' as ID;
+		this.terrain = '' as ID;
 		this.ended = false;
 		this.started = false;
 		this.active = false;
@@ -267,13 +267,13 @@ export class Battle extends Dex.ModdedDex {
 		}
 		let oldstatus = this.getWeather();
 		this.singleEvent('End', oldstatus, this.weatherData, this);
-		this.weather = '';
-		this.weatherData = {id: ''};
+		this.weather = '' as ID;
+		this.weatherData = {id: '' as ID};
 		return true;
 	}
 
 	effectiveWeather() {
-		if (this.suppressingWeather()) return '';
+		if (this.suppressingWeather()) return '' as ID;
 		return this.weather;
 	}
 
@@ -322,8 +322,8 @@ export class Battle extends Dex.ModdedDex {
 		if (!this.terrain) return false;
 		let oldstatus = this.getTerrain();
 		this.singleEvent('End', oldstatus, this.terrainData, this);
-		this.terrain = '';
-		this.terrainData = {id: ''};
+		this.terrain = '' as ID;
+		this.terrainData = {id: '' as ID};
 		return true;
 	}
 
@@ -331,7 +331,7 @@ export class Battle extends Dex.ModdedDex {
 		if (this.event) {
 			if (!target) target = this.event.target;
 		}
-		if (!this.runEvent('TryTerrain', target)) return '';
+		if (!this.runEvent('TryTerrain', target)) return '' as ID;
 		return this.terrain;
 	}
 
@@ -548,7 +548,7 @@ export class Battle extends Dex.ModdedDex {
 	 * (and its helper functions, getRelevant * )
 	 */
 	singleEvent(
-		eventid: string, effect: Effect, effectData: AnyObject | null,
+		eventid: string, effect: Effect, effectData: AnyObjectWithID | null,
 		target: string | Pokemon | Side | Battle | null, source?: string | Pokemon | Effect | false | null,
 		sourceEffect?: Effect | string | null, relayVar?: any) {
 		if (this.eventDepth >= 8) {
@@ -594,7 +594,7 @@ export class Battle extends Dex.ModdedDex {
 		let parentEffectData = this.effectData;
 		let parentEvent = this.event;
 		this.effect = effect;
-		this.effectData = effectData || {};
+		this.effectData = effectData || {id: '' as ID};
 		this.event = {id: eventid, target, source, effect: sourceEffect};
 		this.eventDepth++;
 		let args = [target, source, sourceEffect];
@@ -1490,7 +1490,7 @@ export class Battle extends Dex.ModdedDex {
 							let ability = this.getAbility(abilityName);
 							if (ruleTable.has('-ability:' + ability.id)) continue;
 							if (pokemon.knownType && !this.getImmunity('trapped', pokemon)) continue;
-							this.singleEvent('FoeMaybeTrapPokemon', ability, {}, pokemon, source);
+							this.singleEvent('FoeMaybeTrapPokemon', ability, {id: '' as ID}, pokemon, source);
 						}
 					}
 				}
@@ -2348,13 +2348,13 @@ export class Battle extends Dex.ModdedDex {
 	checkFainted() {
 		for (const pokemon of this.p1.active) {
 			if (pokemon.fainted) {
-				pokemon.status = 'fnt';
+				pokemon.status = 'fnt' as ID;
 				pokemon.switchFlag = true;
 			}
 		}
 		for (const pokemon of this.p2.active) {
 			if (pokemon.fainted) {
-				pokemon.status = 'fnt';
+				pokemon.status = 'fnt' as ID;
 				pokemon.switchFlag = true;
 			}
 		}

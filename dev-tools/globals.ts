@@ -9,7 +9,10 @@ type ChatCommands = import('./../server/chat').ChatCommands
 type ChatFilter = import('./../server/chat').ChatFilter
 type NameFilter = import('./../server/chat').NameFilter
 
+type ID = string & {__isID: true};
+
 interface AnyObject {[k: string]: any}
+interface AnyObjectWithID {id: ID, [k: string]: any}
 type DexTable<T> = {[key: string]: T}
 
 declare let Config: {[k: string]: any};
@@ -375,6 +378,9 @@ interface ModdedEffectData extends Partial<EffectData> {
 type EffectType = 'Effect' | 'Pokemon' | 'Move' | 'Item' | 'Ability' | 'Format' | 'Ruleset' | 'Weather' | 'Status' | 'Rule' | 'ValidatorRule'
 
 interface BasicEffect extends EffectData {
+	id: ID
+	weather?: ID
+	status?: ID
 	effectType: EffectType
 	exists: boolean
 	flags: AnyObject
@@ -514,6 +520,9 @@ interface Move extends Readonly<BasicEffect & MoveData> {
 
 interface ActiveMove extends BasicEffect, MoveData {
 	readonly effectType: 'Move'
+	id: ID
+	weather?: ID
+	status?: ID
 	typeMod: number
 	hit: number
 	ability?: Ability
@@ -635,7 +644,7 @@ interface Template extends Readonly<BasicEffect & TemplateData & TemplateFormats
 	readonly maleOnlyHidden: boolean
 	readonly nfe: boolean
 	readonly prevo: string
-	readonly speciesid: string
+	readonly speciesid: ID
 	readonly spriteid: string
 	readonly tier: string
 	readonly addedType?: string
@@ -812,7 +821,7 @@ interface TypeInfo extends Readonly<TypeData> {
 	readonly gen: number
 	readonly HPdvs: SparseStatsTable
 	readonly HPivs: SparseStatsTable
-	readonly id: string
+	readonly id: ID
 	readonly name: string
 	readonly toString: () => string
 }

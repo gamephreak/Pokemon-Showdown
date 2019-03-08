@@ -7,7 +7,7 @@
 
  /** A Pokemon's move slot. */
 interface MoveSlot {
-	id: string;
+	id: ID;
 	move: string;
 	pp: number;
 	maxpp: number;
@@ -27,7 +27,7 @@ export class Pokemon {
 	baseTemplate: Template;
 	species: string;
 	name: string;
-	speciesid: string;
+	speciesid: ID;
 	template: Template;
 	moveSlots: MoveSlot[];
 	baseMoveSlots: MoveSlot[];
@@ -38,9 +38,9 @@ export class Pokemon {
 	illusion: Pokemon | null;
 	fainted: boolean;
 	faintQueued: boolean;
-	lastItem: string;
+	lastItem: ID;
 	ateBerry: boolean;
-	status: string;
+	status: ID;
 	position: number;
 	/**
 	 * If the switch is called by an effect with a special switch
@@ -110,7 +110,7 @@ export class Pokemon {
 	/** used for Assurance check */
 	hurtThisTurn: boolean;
 	lastDamage: number;
-	attackedBy: {source: Pokemon, damage: number, thisTurn: boolean, move?: string}[];
+	attackedBy: {source: Pokemon, damage: number, thisTurn: boolean, move?: ID}[];
 	usedItemThisTurn: boolean;
 	newlySwitched: boolean;
 	beingCalledBack: boolean;
@@ -129,16 +129,16 @@ export class Pokemon {
 	fullname: string;
 	details: string;
 	id: string; // shouldn't really be used anywhere
-	statusData: AnyObject;
+	statusData: AnyObjectWithID;
 	volatiles: AnyObject;
 	heightm: number;
 	weightkg: number;
-	baseAbility: string;
-	ability: string;
-	item: string;
-	abilityData: {[k: string]: string | Pokemon};
-	itemData: {[k: string]: string | Pokemon};
-	speciesData: AnyObject;
+	baseAbility: ID;
+	ability: ID;
+	item: ID;
+	abilityData: {id: ID, [k: string]: string | Pokemon};
+	itemData: {id: ID, [k: string]: string | Pokemon};
+	speciesData: AnyObjectWithID;
 	types: string[];
 	addedType: string;
 	knownType: boolean;
@@ -209,9 +209,9 @@ export class Pokemon {
 		this.illusion = null;
 		this.fainted = false;
 		this.faintQueued = false;
-		this.lastItem = '';
+		this.lastItem = '' as ID;
 		this.ateBerry = false;
-		this.status = '';
+		this.status = '' as ID;
 		this.position = 0;
 		this.switchFlag = false;
 		this.forceSwitchFlag = false;
@@ -249,7 +249,7 @@ export class Pokemon {
 
 		this.id = this.fullname; // shouldn't really be used anywhere
 
-		this.statusData = {};
+		this.statusData = {id: '' as ID};
 		this.volatiles = {};
 
 		this.heightm = this.template.heightm;
@@ -1012,7 +1012,7 @@ export class Pokemon {
 					this.moveThisTurnResult = true; // Ultra Burst counts as an action for Truant
 				} else if (source.onPrimal) {
 					if (this.illusion) {
-						this.ability = '';
+						this.ability = '' as ID;
 						this.battle.add('-primal', this.illusion);
 					} else {
 						this.battle.add('-primal', this);
@@ -1034,7 +1034,7 @@ export class Pokemon {
 		}
 		if (source.effectType !== 'Ability' && source.id !== 'relicsong' && source.id !== 'zenmode') {
 			if (this.illusion) {
-				this.ability = ''; // Don't allow Illusion to wear off
+				this.ability = '' as ID; // Don't allow Illusion to wear off
 			}
 			this.setAbility(template.abilities[abilitySlot], null, true);
 			if (isPermanent) this.baseAbility = this.ability;
@@ -1053,8 +1053,8 @@ export class Pokemon {
 			evasion: 0,
 		};
 
-		if (this.battle.gen === 1 && this.baseMoves.includes('mimic') && !this.transformed) {
-			let moveslot = this.baseMoves.indexOf('mimic');
+		if (this.battle.gen === 1 && this.baseMoves.includes('mimic' as ID) && !this.transformed) {
+			let moveslot = this.baseMoves.indexOf('mimic' as ID);
 			let mimicPP = this.moveSlots[moveslot] ? this.moveSlots[moveslot].pp : 16;
 			this.moveSlots = this.baseMoveSlots.slice();
 			this.moveSlots[moveslot].pp = mimicPP;
@@ -1302,8 +1302,8 @@ export class Pokemon {
 			this.battle.runEvent('EatItem', this, null, null, item);
 
 			this.lastItem = this.item;
-			this.item = '';
-			this.itemData = {id: '', target: this};
+			this.item = '' as ID;
+			this.itemData = {id: '' as ID, target: this};
 			this.usedItemThisTurn = true;
 			this.ateBerry = true;
 			this.battle.runEvent('AfterUseItem', this, null, null, item);
@@ -1334,8 +1334,8 @@ export class Pokemon {
 			this.battle.singleEvent('Use', item, this.itemData, this, source, sourceEffect);
 
 			this.lastItem = this.item;
-			this.item = '';
-			this.itemData = {id: '', target: this};
+			this.item = '' as ID;
+			this.itemData = {id: '' as ID, target: this};
 			this.usedItemThisTurn = true;
 			this.battle.runEvent('AfterUseItem', this, null, null, item);
 			return true;
@@ -1353,8 +1353,8 @@ export class Pokemon {
 		}
 		let item = this.getItem();
 		if (this.battle.runEvent('TakeItem', this, source, null, item)) {
-			this.item = '';
-			this.itemData = {id: '', target: this};
+			this.item = '' as ID;
+			this.itemData = {id: '' as ID, target: this};
 			return item;
 		}
 		return false;
