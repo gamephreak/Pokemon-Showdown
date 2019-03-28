@@ -20,7 +20,9 @@ if (require.main === module) shell('node ../build');
 // Preload Dex to avoid skewing benchmarks.
 require('../.sim-dist/dex').includeModData();
 
+global.Config = {};
 const BattleStreams = require('../.sim-dist/battle-stream');
+const FS = require('../.lib-dist/fs').FS;
 const PRNG = require('../.sim-dist/prng').PRNG;
 const RandomPlayerAI = require('../.sim-dist/examples/random-player-ai').RandomPlayerAI;
 
@@ -241,10 +243,22 @@ if (require.main === module) {
 				maxTime: argv.maxTime || 300,
 				fn: deferred => new Runner(options).run().finally(() => deferred.resolve()),
 				onError: () => process.exit(1),
+				onCycle: e => console.log(e.target.elapsed, e.targets.
 				onComplete: e => {
-					// TODO output stats with formatter
-					console.log(e.target.stats.sample);
-					// TODO dump stats.json for comparison
+					const sample = e.target.stats.sample.map(s => s * 1e3);
+					const fs = FS('dev-tools/benchmark.json');
+					const prev = fs.readIfExistsSync();
+					if (prev) {
+						// TODO output stats with formatter
+						console.log(prev, JSON.stringify(sample));
+						// TODO: move into trakkr
+						const compare = require('./compare');
+						compare(JSON.parse(prev), sample);
+					} else {
+						// TODO output stats with formatter
+						console.log(JSON.stringify(sample));
+					}
+					fs.safeWriteSync(JSON.stringify(sample));
 				},
 			});
 		} else {
