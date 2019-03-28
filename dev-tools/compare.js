@@ -67,6 +67,20 @@ function compute(control, test) {
 const colors = require('colors/safe');
 const table = require('table').table;
 
+const GFM = {
+	border: {
+		bodyLeft: '|',
+		bodyRight: '|',
+		bodyJoin: '|',
+
+		joinBody: '-',
+		joinLeft: '|',
+		joinRight: '|',
+		joinJoin: '|'
+	},
+	drawHorizontalLine: index => index === 1,
+};
+
 function compare(control, test) {
 	const r = compute(control, test);
 	console.log(table([
@@ -83,6 +97,7 @@ function compare(control, test) {
 function display(diff, ci, percentile) {
 	const diffp = percent(diff, percentile);
 	const cip = percent(ci, percentile);
+	// TODO: break with config instead of '\n'
 	return color(diff, ci)(`${format(diff)} \u00B1${format(ci)}\n(${diffp} \u00B1${cip})`);
 }
 
