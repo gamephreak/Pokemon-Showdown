@@ -1,6 +1,8 @@
 'use strict';
 
-const Stats = require('trakr').Stats;
+const trakkr = require('trakkr')
+const Stats = trakkr.Stats;
+const fmt = trakkr.formatMillis;
 
 function confidenceIntervals(control, test) {
 	const N = 1000;
@@ -84,10 +86,10 @@ const GFM = {
 function compare(control, test) {
 	const r = compute(control, test);
 	console.log(table([
-		['num', 'control', 'test', 'd50', 'd90', 'd99'].map(h => colors.bold(h)),
+		['num', 'control', 'test', 'd50', 'd95', 'd99'].map(h => colors.bold(h)),
 		[Math.min(r.control.cnt, r.test.cnt),
-		 `${format(r.control.avg)} (${format(r.control.p50)})`,
-		 `${format(r.test.avg)} (${format(r.test.p50)})`,
+		 `${fmt(r.control.avg)} (${fmt(r.control.p50)})`,
+		 `${fmt(r.test.avg)} (${fmt(r.test.p50)})`,
 		 display(r.diff.d50, r.diff.ci50, r.control.p50),
 		 display(r.diff.d95, r.diff.ci95, r.control.p95),
 		 display(r.diff.d99, r.diff.ci99, r.control.p99)],
@@ -95,10 +97,10 @@ function compare(control, test) {
 }
 
 function display(diff, ci, percentile) {
-	const diffp = percent(diff, percentile);
-	const cip = percent(ci, percentile);
+	const diffp = trakkr.formatPercent(diff, percentile);
+	const cip = trakkr.formatPercent(ci, percentile);
 	// TODO: break with config instead of '\n'
-	return color(diff, ci)(`${format(diff)} \u00B1${format(ci)}\n(${diffp} \u00B1${cip})`);
+	return color(diff, ci)(`${fmt(diff)} \u00B1${fmt(ci)}\n(${diffp} \u00B1${cip})`);
 }
 
 function color(diff, ci) {
@@ -106,29 +108,6 @@ function color(diff, ci) {
 		(diff - ci > 0 && diff + ci > 0) ? colors.green :
 			colors.gray;
 }
-
-////////// TRAKKR //////////
-
-function format(ms) {
-	const abs = Math.abs(ms);
-	if (abs < 0.001) return `${decimal(ms * 1000 * 1000)}ns`;
-	if (abs < 1) return `${decimal(ms * 1000)}\u03BCs`;
-	if (abs < 1000) return `${decimal(ms)}ms`;
-	return `${decimal(ms / 1000)}s`;
-}
-
-function decimal(n) {
-	const abs = Math.abs(n);
-	if (abs < 1) return n.toFixed(3);
-	if (abs < 10) return n.toFixed(2);
-	if (abs < 100) return n.toFixed(1);
-	return n.toFixed();
-}
-
-function percent(n, d) {
-	return `${(n * 100 / d).toFixed(2)}%`;
-}
-
 
 module.exports = compare;
 

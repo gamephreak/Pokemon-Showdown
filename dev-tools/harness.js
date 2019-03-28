@@ -243,9 +243,16 @@ if (require.main === module) {
 				maxTime: argv.maxTime || 300,
 				fn: deferred => new Runner(options).run().finally(() => deferred.resolve()),
 				onError: () => process.exit(1),
-				onCycle: e => console.log(e.target.elapsed, e.targets.
+				onCycle: e => {
+					const times = e.target.times;
+					const sample = e.target.stats.sample.length;
+					const elapsed = trakkr.formatHHMMSS(new Date() - new Date(times.timeStamp));
+					const last = trakkr.formatMillis(times.period * 1000);
+					// TODO: verbose/silent etc?
+					if (sample > 0) console.log(`${sample}) ${last} [${elapsed}]`);
+				},
 				onComplete: e => {
-					const sample = e.target.stats.sample.map(s => s * 1e3);
+					const sample = e.target.stats.sample.slice(1).map(s => s * 1000);
 					const fs = FS('dev-tools/benchmark.json');
 					const prev = fs.readIfExistsSync();
 					if (prev) {
