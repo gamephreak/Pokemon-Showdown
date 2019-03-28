@@ -25,6 +25,7 @@ const BattleStreams = require('../.sim-dist/battle-stream');
 const FS = require('../.lib-dist/fs').FS;
 const PRNG = require('../.sim-dist/prng').PRNG;
 const RandomPlayerAI = require('../.sim-dist/examples/random-player-ai').RandomPlayerAI;
+let trakkr; // optional
 
 const FORMATS = [
 	'gen7randombattle', 'gen7randomdoublesbattle', 'gen7battlefactory', 'gen6randombattle', 'gen6battlefactory',
@@ -197,7 +198,7 @@ const BENCHMARK_SEED = [0x01234, 0x05678, 0x09123, 0x04567];
 
 // Kick off the Runner if we're being called from the command line.
 if (require.main === module) {
-	let benchmark;
+	let benchmark, progress;
 	const options = {totalGames: 100};
 	// If we have more than one arg, or the arg looks like a flag, we need minimist to understand it.
 	if (process.argv.length > 3 || process.argv.length === 3 && process.argv[2].startsWith('-')) {
@@ -230,31 +231,30 @@ if (require.main === module) {
 			if (deps.length) shell(`npm install ${deps.join(' ')}`);
 
 			const Benchmark = require('benchmark');
-			const trakkr = require('trakkr');
+			trakkr = require('trakkr');
 
+			options.totalGames = 1; // FIXME
 			// In benchmark mode the options are fixed for repeatability.
 			options.prng = BENCHMARK_SEED;
 			options.sequential = true;
 			options.formatter = formatter(trakkr);
+
+
+			progress = {};
 			benchmark = new Benchmark({
 				async: true,
 				defer: true,
 				minSamples: argv.minSamples || 20,
-				maxTime: argv.maxTime || 300,
+				maxTime: argv.maxTime || 5,
 				fn: deferred => new Runner(options).run().finally(() => deferred.resolve()),
 				onError: () => process.exit(1),
-				onCycle: e => {
-					const times = e.target.times;
-					const sample = e.target.stats.sample.length;
-					const elapsed = trakkr.formatHHMMSS(new Date() - new Date(times.timeStamp));
-					const last = trakkr.formatMillis(times.period * 1000);
-					// TODO: verbose/silent etc?
-					if (sample > 0) console.log(`${sample}) ${last} [${elapsed}]`);
-				},
+				onCycle: e => { progress.num = e.target.stats.sample.length - 1; },
 				onComplete: e => {
+					clearInterval(progress.update);
 					const sample = e.target.stats.sample.slice(1).map(s => s * 1000);
 					const fs = FS('dev-tools/benchmark.json');
 					const prev = fs.readIfExistsSync();
+					process.stdout.write('\n'); // TODO only if progress
 					if (prev) {
 						// TODO output stats with formatter
 						console.log(prev, JSON.stringify(sample));
@@ -275,7 +275,7 @@ if (require.main === module) {
 
 			if (argv.profile || argv.trace) {
 				if (missing('trakkr')) shell('npm install trakkr');
-				const trakkr = require('trakkr');
+				trakkr = require('trakkr');
 
 				options.async = false;
 				options.prng = BENCHMARK_SEED;
@@ -330,6 +330,14 @@ if (require.main === module) {
 	process.on('exit', c => RejectionTracker.onExit(c));
 
 	if (benchmark) {
+		progress.start = new Date();
+		// TODO: verbose/silent etc?
+		progress.update = setInterval(() => {
+			if (!progress.num) return;
+			if (progress.num > 1) process.stdout.write('\r\x1b[K');
+			const elapsed = trakkr.formatHHMMSS(new Date() - progress.start, true);
+			process.stdout.write(`${progress.num} samples collected (${elapsed})`);
+		}, 1000);
 		benchmark.run();
 	} else {
 		// Run options.totalGames, exiting with the number of games with errors.
