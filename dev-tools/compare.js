@@ -1,12 +1,21 @@
 'use strict';
 
-const trakkr = require('trakkr')
+const trakkr = require('trakkr');
 const Stats = trakkr.Stats;
 const fmt = trakkr.formatMillis;
 
-function confidenceIntervals(control, test) {
+function compute(control, test) {
+	return {
+	  control: Stats.compute(control),
+	  test: Stats.compute(test),
+	  bootstrap: bootstrap(control, test),
+	};
+}
+
+function bootstrap(control, test) {
 	const N = 1000;
 	const d50 = new Array(N);
+	const d90 = new Array(N);
 	const d95 = new Array(N);
 	const d99 = new Array(N);
 
@@ -17,19 +26,23 @@ function confidenceIntervals(control, test) {
 		const qt = percentiles(sample(test, ct));
 
 		d50[i] = qc.p50 - qt.p50;
+		d90[i] = qc.p90 - qt.p90;
 		d95[i] = qc.p95 - qt.p95;
 		d99[i] = qc.p99 - qt.p99;
 	}
 
 	const md50 = Stats.mean(d50);
+	const md90 = Stats.mean(d90);
 	const md95 = Stats.mean(d95);
 	const md99 = Stats.mean(d99);
 
 	return {
 		d50: md50,
+		d90: md90,
 		d95: md95,
 		d99: md99,
 		ci50: 1.96 * Stats.standardDeviation(d50, true, md50),
+		ci90: 1.96 * Stats.standardDeviation(d90, true, md90),
 		ci95: 1.96 * Stats.standardDeviation(d95, true, md95),
 		ci99: 1.96 * Stats.standardDeviation(d99, true, md99),
 	};
@@ -39,29 +52,25 @@ function percentiles(arr) {
 	arr.sort((a, b) => a - b);
 	return {
 		p50: Stats.ptile(arr, 0.50),
+		p90: Stats.ptile(arr, 0.90),
 		p95: Stats.ptile(arr, 0.95),
 		p99: Stats.ptile(arr, 0.99),
 	};
 }
 
 function sample(arr, n) {
-	shuffle(arr);
-	return arr.slice(0, n);
-}
-
-function shuffle(arr) {
-	for (let i = arr.length - 1; i > 0; i--) {
-		const j = Math.floor(Math.random() * (i + 1));
-		[arr[i], arr[j]] = [arr[j], arr[i]];
+	const sampled = [];
+	const length = arr.length;
+	for (let i = 0; i < n; i++) {
+		sampled.push(arr[random(0, length)]);
 	}
+	return sampled;
 }
 
-function compute(control, test) {
-	return {
-	  control: Stats.compute(control),
-	  test: Stats.compute(test),
-	  diff: confidenceIntervals(control, test),
-	};
+function random(min, max) {
+	min = Math.ceil(min);
+	max = Math.floor(max);
+	return Math.floor(Math.random() * (max - min)) + min;
 }
 
 ////////// DISPLAY //////////
@@ -78,21 +87,23 @@ const GFM = {
 		joinBody: '-',
 		joinLeft: '|',
 		joinRight: '|',
-		joinJoin: '|'
+		joinJoin: '|',
 	},
 	drawHorizontalLine: index => index === 1,
 };
 
 function compare(control, test) {
 	const r = compute(control, test);
+	console.log(r);
 	console.log(table([
-		['num', 'control', 'test', 'd50', 'd95', 'd99'].map(h => colors.bold(h)),
+		['num', 'control', 'test', 'd50', 'd90', 'd95', 'd99'].map(h => colors.bold(h)),
 		[Math.min(r.control.cnt, r.test.cnt),
 		 `${fmt(r.control.avg)} (${fmt(r.control.p50)})`,
 		 `${fmt(r.test.avg)} (${fmt(r.test.p50)})`,
-		 display(r.diff.d50, r.diff.ci50, r.control.p50),
-		 display(r.diff.d95, r.diff.ci95, r.control.p95),
-		 display(r.diff.d99, r.diff.ci99, r.control.p99)],
+		 display(r.bootstrap.d50, r.bootstrap.ci50, r.control.p50),
+		 display(r.bootstrap.d90, r.bootstrap.ci90, r.control.p90),
+		 display(r.bootstrap.d95, r.bootstrap.ci95, r.control.p95),
+		 display(r.bootstrap.d99, r.bootstrap.ci99, r.control.p99)],
 	]));
 }
 
