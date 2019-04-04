@@ -795,6 +795,12 @@ export class Move extends BasicEffect implements Readonly<BasicEffect & MoveData
 	readonly noSketch: boolean;
 	/** STAB multiplier (can be modified by other effects) (default 1.5). */
 	readonly stab?: number;
+	/** TODO */
+	readonly isViable?: boolean;
+	readonly contestType?: string;
+	readonly zMoveBoost?: SparseBoostsTable;
+	readonly zMoveEffect: string;
+	readonly zMovePower?: number;
 
 	constructor(data: AnyObject, ...moreData: (AnyObject | null)[]) {
 		super(data, ...moreData);
@@ -833,6 +839,12 @@ export class Move extends BasicEffect implements Readonly<BasicEffect & MoveData
 		this.forceSTAB = !!data.forceSTAB;
 		this.noSketch = !!data.noSketch;
 		this.stab = data.stab || undefined;
+
+		this.isViable = data.isViable || undefined;
+		this.contestType = data.contestType || undefined;
+		this.zMoveBoost = data.zMoveBoost || undefined;
+		this.zMoveEffect = data.zMoveEffect || undefined;
+		this.zMovePower = data.zMovePower || undefined;
 
 		if (!this.gen) {
 			if (this.num >= 622) {

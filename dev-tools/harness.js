@@ -17,9 +17,12 @@ const shell = cmd => child_process.execSync(cmd, {stdio: 'inherit', cwd: __dirna
 // NOTE: `require('../build')` is not safe because `replace` is async.
 if (require.main === module) shell('node ../build');
 
+global.Config = {};
+const Battle = require('../.sim-dist/battle').Battle;
 const BattleStreams = require('../.sim-dist/battle-stream');
 const PRNG = require('../.sim-dist/prng').PRNG;
 const RandomPlayerAI = require('../.sim-dist/examples/random-player-ai').RandomPlayerAI;
+const Streams = require('../.lib-dist/streams');
 
 // 'move' 70% of the time (ie. 'switch' 30%) and ' mega' 60% of the time that its an option.
 const AI_OPTIONS = {move: 0.7, mega: 0.6, createAI: (s, o) => new RandomPlayerAI(s, o)};
@@ -40,10 +43,12 @@ class Runner {
 		this.input = !!options.input;
 		this.output = !!options.output;
 		this.error = !!options.error;
+		this.dual = !!options.dual;
 	}
 
 	async run() {
-		const battleStream = new RawBattleStream(this.input);
+		const battleStream =
+			this.dual ? new DualRawBattleStream(this.input) : new RawBattleStream(this.input);
 		const game = this.runGame(this.format, battleStream);
 		if (!this.error) return game;
 		return game.catch(err => {
@@ -105,6 +110,58 @@ class RawBattleStream extends BattleStreams.BattleStream {
 		if (this.input) console.log(message);
 		this.rawInputLog.push(message);
 		super._write(message);
+	}
+}
+
+class DualRawBattleStream extends Streams.ObjectReadWriteStream {
+	constructor(input) {
+		super();
+		this.control = new RawBattleStream(input);
+		this.test = new RawBattleStream(false);
+		this.stringify = require('json-stable-stringify');
+	}
+
+	get rawInputLog() {
+		const control = this.control.rawInputLog;
+		const test = this.test.rawInputLog;
+		this.verify(control.join('\n'), test.join('\n'));
+		return control;
+	}
+
+	async read() {
+		const control = await this.control.read();
+		const test = await this.test.read();
+		this.verify(control, test);
+		return control;
+	}
+
+	async _write(message) {
+		await this.control._write(message);
+		await this.test._write(message);
+		this.compare();
+	}
+
+	async _end() {
+		await this.control._end();
+		await this.test._end();
+		this.compare();
+	}
+
+	compare() {
+		if (!this.control.battle || !this.test.battle) return;
+		const control = this.stringify(this.control.battle, null, 2);
+		const test = this.stringify(this.test.battle, null, 2);
+		this.verify(control, test);
+		this.test.battle = Battle.fromJSON(test); // TODO: send?
+		this.test.battle.restart();
+	}
+
+	verify(control, test) {
+		if (test !== control) {
+			console.log(control);
+			console.error(test);
+			process.exit(1);
+		}
 	}
 }
 
@@ -230,6 +287,7 @@ if (require.main === module) {
 		Object.assign(options, argv);
 		options.totalGames = Number(argv._[0] || argv.num) || options.totalGames;
 		if (argv.seed) options.prng = argv.seed.split(',').map(s => Number(s));
+		if (argv.dual && missing('json-stable-stringify')) shell('npm install json-stable-stringify');
 	} else if (process.argv.length === 3) {
 		// If we have one arg, treat it as the total number of games to play.
 		options.totalGames = Number(process.argv[2]) || options.totalGames;

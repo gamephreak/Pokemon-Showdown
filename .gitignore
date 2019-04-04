@@ -55,3 +55,7 @@ local_settings.py
 .svn
 
 pip-log.txt
+
+# FIXME
+test.json
+control.json

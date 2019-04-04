@@ -11,6 +11,7 @@ import {Field} from './field';
 import {Pokemon} from './pokemon';
 import {PRNG, PRNGSeed} from './prng';
 import {Side} from './side';
+import {State} from './state';
 
 /** A Pokemon that has fainted. */
 interface FaintedPokemon {
@@ -30,6 +31,7 @@ interface BattleOptions {
 	p3?: PlayerOptions; // Player 3 data
 	p4?: PlayerOptions; // Player 4 data
 	debug?: boolean; // show debug mode option
+	deserialized?: boolean;
 	strictChoices?: boolean; // whether invalid choices should throw
 }
 
@@ -46,6 +48,7 @@ export type RequestState = 'teampreview' | 'move' | 'switch' | '';
 export class Battle extends Dex.ModdedDex {
 	readonly id: '';
 	readonly debugMode: boolean;
+	readonly deserialized: boolean;
 	readonly strictChoices: boolean;
 	readonly format: string;
 	readonly formatData: AnyObject;
@@ -116,6 +119,7 @@ export class Battle extends Dex.ModdedDex {
 
 		this.id = '';
 		this.debugMode = format.debug || !!options.debug;
+		this.deserialized = !!options.deserialized;
 		this.strictChoices = !!options.strictChoices;
 		this.format = format.id;
 		this.formatData = {id: format.id};
@@ -203,6 +207,17 @@ export class Battle extends Dex.ModdedDex {
 				this.setPlayer(side, options[side]!);
 			}
 		}
+	}
+
+	toJSON(): AnyObject {
+		return State.serializeBattle(this);
+	}
+
+	static fromJSON(
+		serialized: string | AnyObject,
+		send?: (type: string, data: string | string[]) => void
+	): Battle {
+		return State.deserializeBattle(serialized, send);
 	}
 
 	get p1() {
@@ -1310,6 +1325,12 @@ export class Battle extends Dex.ModdedDex {
 
 	nextTurn() {
 		this.turn++;
+		// if (this.turn === 10) {
+		// 	const toJSON = JSON.stringify(this, null, 2);
+		// 	console.log(toJSON);
+		// 	const fromJSON = Battle.fromJSON(toJSON);
+		// 	console.error(JSON.stringify(fromJSON, null, 2));
+		// }
 		let allStale = true;
 		let oneStale: Pokemon | null = null;
 		for (const side of this.sides) {
@@ -1542,6 +1563,8 @@ export class Battle extends Dex.ModdedDex {
 	}
 
 	start() {
+		// deserialized should use restart instead
+		if (this.deserialized) return;
 		// need all players to start
 		if (!this.sides.every(side => !!side)) return;
 
@@ -1585,6 +1608,15 @@ export class Battle extends Dex.ModdedDex {
 
 		this.addToQueue({choice: 'start'});
 		this.midTurn = true;
+		if (!this.requestState) this.go();
+	}
+
+	restart() {
+		if (!this.deserialized) throw new Error('Attempt to restart a battle which has not been deserialized');
+		if (!this.started) {
+			this.start();
+			return;
+		}
 		if (!this.requestState) this.go();
 	}
 
@@ -2660,7 +2692,7 @@ export class Battle extends Dex.ModdedDex {
 					foeActive.removeVolatile('substitutebroken');
 				}
 			}
-			delete action.pokemon.draggedIn;
+			action.pokemon.draggedIn = null;
 			break;
 		case 'runPrimal':
 			if (!action.pokemon.transformed) {
@@ -2973,7 +3005,7 @@ export class Battle extends Dex.ModdedDex {
 		const format = this.getFormat();
 		let team = options.team;
 		if (typeof team === 'string') team = Dex.fastUnpackTeam(team);
-		if (!format.team && team) return team;
+		if ((!format.team || this.deserialized) && team) return team;
 
 		if (!options.seed) {
 			options.seed = PRNG.generateSeed();

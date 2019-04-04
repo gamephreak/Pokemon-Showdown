@@ -5,6 +5,9 @@
  * @license MIT license
  */
 
+import {Battle} from './battle';
+import {State} from './state';
+
  /** A Pokemon's move slot. */
 interface MoveSlot {
 	id: string;
@@ -380,6 +383,10 @@ export class Pokemon {
 		 * An object for storing untyped data, for mods to use.
 		 */
 		this.m = {};
+	}
+
+	toJSON(): AnyObject {
+		return State.serializePokemon(this);
 	}
 
 	get moves() {
