@@ -234,6 +234,7 @@ export function getPlayerStreams(stream: BattleStream) {
 		for (const s of Object.values(streams)) {
 			s.push(null);
 		}
+		stream.end(); // TODO
 	})().catch(err => {
 		for (const s of Object.values(streams)) {
 			s.pushError(err);

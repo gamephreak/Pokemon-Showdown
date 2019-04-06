@@ -49,7 +49,10 @@ class Runner {
 	async run() {
 		const battleStream =
 			this.dual ? new DualRawBattleStream(this.input) : new RawBattleStream(this.input);
-		const game = this.runGame(this.format, battleStream);
+		const game = this.runGame(this.format, battleStream).then(() => {
+			console.log('HI');
+			if (!battleStream.ended) throw new Error('BattleStream has not been ended'); 
+		})
 		if (!this.error) return game;
 		return game.catch(err => {
 			console.log(`\n${battleStream.rawInputLog.join('\n')}\n`);
@@ -64,20 +67,20 @@ class Runner {
 		const p2spec = this.getPlayerSpec("Bot 2", this.p2options);
 
 		const p1 = this.p1options.createAI(
-			streams.p1, Object.assign({seed: this.newSeed()}, this.p1options));
+			streams.p1, Object.assign({seed: this.newSeed()}, this.p1options)).start();
 		const p2 = this.p2options.createAI(
-			streams.p2, Object.assign({seed: this.newSeed()}, this.p2options));
+			streams.p2, Object.assign({seed: this.newSeed()}, this.p2options)).start();
 		// TODO: Use `await Promise.race([streams.omniscient.read(), p1, p2])` to avoid
 		// leaving these promises dangling once it no longer causes memory leaks (v8#9069).
-		p1.start();
-		p2.start();
+		// p1.start();
+		// p2.start();
 
 		streams.omniscient.write(`>start ${JSON.stringify(spec)}\n` +
 			`>player p1 ${JSON.stringify(p1spec)}\n` +
 			`>player p2 ${JSON.stringify(p2spec)}`);
 
 		let chunk;
-		while ((chunk = await streams.omniscient.read())) {
+		while ((chunk = await Promise.race([streams.omniscient.read(), p1, p2]))) {
 			if (this.output) console.log(chunk);
 		}
 	}
@@ -111,6 +114,11 @@ class RawBattleStream extends BattleStreams.BattleStream {
 		this.rawInputLog.push(message);
 		super._write(message);
 	}
+
+	_end() {
+		super._end();
+		this.ended = true;
+	}
 }
 
 class DualRawBattleStream extends Streams.ObjectReadWriteStream {
@@ -142,9 +150,11 @@ class DualRawBattleStream extends Streams.ObjectReadWriteStream {
 	}
 
 	async _end() {
+		console.log('_end');
 		await this.control._end();
 		await this.test._end();
 		this.compare();
+		this.ended = true;
 	}
 
 	compare() {
@@ -153,7 +163,7 @@ class DualRawBattleStream extends Streams.ObjectReadWriteStream {
 		const test = this.stringify(this.test.battle, null, 2);
 		this.verify(control, test);
 		this.test.battle = Battle.fromJSON(test); // TODO: send?
-		this.test.battle.restart();
+		//this.test.battle.restart();
 	}
 
 	verify(control, test) {
@@ -162,6 +172,7 @@ class DualRawBattleStream extends Streams.ObjectReadWriteStream {
 			console.error(test);
 			process.exit(1);
 		}
+		console.log('EQUAL');
 	}
 }
 
