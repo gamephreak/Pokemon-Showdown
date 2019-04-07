@@ -236,7 +236,8 @@ export const State = new class {
 				}
 
 				const o: any = {};
-				for (const [key, value] of Object.entries(obj)) {
+				const sorted = Object.entries(obj).sort();
+				for (const [key, value] of sorted) {
 					o[key] = this.serializeWithRefs(value, battle);
 				}
 				return o;
@@ -323,7 +324,8 @@ export const State = new class {
 
 	private serialize(obj: object, skip: Set<string>, battle: Battle): AnyObject {
 		const state: AnyObject = {};
-		for (const [key, value] of Object.entries(obj)) {
+		const sorted = Object.entries(obj).sort();
+		for (const [key, value] of sorted) {
 			if (skip.has(key)) continue;
 			state[key] = this.serializeWithRefs(value, battle);
 		}

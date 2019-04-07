@@ -49,10 +49,7 @@ class Runner {
 	async run() {
 		const battleStream =
 			this.dual ? new DualRawBattleStream(this.input) : new RawBattleStream(this.input);
-		const game = this.runGame(this.format, battleStream).then(() => {
-			console.log('HI');
-			if (!battleStream.ended) throw new Error('BattleStream has not been ended'); 
-		})
+		const game = this.runGame(this.format, battleStream);
 		if (!this.error) return game;
 		return game.catch(err => {
 			console.log(`\n${battleStream.rawInputLog.join('\n')}\n`);
@@ -83,6 +80,7 @@ class Runner {
 		while ((chunk = await Promise.race([streams.omniscient.read(), p1, p2]))) {
 			if (this.output) console.log(chunk);
 		}
+		streams.omniscient.end();
 	}
 
 	// Same as PRNG#generatedSeed, only deterministic.
@@ -114,11 +112,6 @@ class RawBattleStream extends BattleStreams.BattleStream {
 		this.rawInputLog.push(message);
 		super._write(message);
 	}
-
-	_end() {
-		super._end();
-		this.ended = true;
-	}
 }
 
 class DualRawBattleStream extends Streams.ObjectReadWriteStream {
@@ -126,7 +119,6 @@ class DualRawBattleStream extends Streams.ObjectReadWriteStream {
 		super();
 		this.control = new RawBattleStream(input);
 		this.test = new RawBattleStream(false);
-		this.stringify = require('json-stable-stringify');
 	}
 
 	get rawInputLog() {
@@ -150,20 +142,19 @@ class DualRawBattleStream extends Streams.ObjectReadWriteStream {
 	}
 
 	async _end() {
-		console.log('_end');
 		await this.control._end();
 		await this.test._end();
 		this.compare();
-		this.ended = true;
 	}
 
 	compare() {
 		if (!this.control.battle || !this.test.battle) return;
-		const control = this.stringify(this.control.battle, null, 2);
-		const test = this.stringify(this.test.battle, null, 2);
+		const control = JSON.stringify(this.control.battle, null, 2);
+		const test = JSON.stringify(this.test.battle, null, 2);
 		this.verify(control, test);
-		this.test.battle = Battle.fromJSON(test); // TODO: send?
-		//this.test.battle.restart();
+		const send = this.test.battle.send;
+		this.test.battle = Battle.fromJSON(test);
+		this.test.battle.restart(send);
 	}
 
 	verify(control, test) {
@@ -172,7 +163,6 @@ class DualRawBattleStream extends Streams.ObjectReadWriteStream {
 			console.error(test);
 			process.exit(1);
 		}
-		console.log('EQUAL');
 	}
 }
 
@@ -298,7 +288,6 @@ if (require.main === module) {
 		Object.assign(options, argv);
 		options.totalGames = Number(argv._[0] || argv.num) || options.totalGames;
 		if (argv.seed) options.prng = argv.seed.split(',').map(s => Number(s));
-		if (argv.dual && missing('json-stable-stringify')) shell('npm install json-stable-stringify');
 	} else if (process.argv.length === 3) {
 		// If we have one arg, treat it as the total number of games to play.
 		options.totalGames = Number(process.argv[2]) || options.totalGames;

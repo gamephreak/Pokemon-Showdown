@@ -1611,8 +1611,10 @@ export class Battle extends Dex.ModdedDex {
 		if (!this.requestState) this.go();
 	}
 
-	restart() {
+	restart(send?: (type: string, data: string | string[]) => void) {
 		if (!this.deserialized) throw new Error('Attempt to restart a battle which has not been deserialized');
+		// @ts-ignore - readonly
+		this.send = send;
 		if (!this.started) {
 			this.start();
 			return;
