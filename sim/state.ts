@@ -131,7 +131,7 @@ export const State = new class {
 		const team = new Array(side.pokemon.length);
 		for (const [i, pokemon] of side.pokemon.entries()) {
 			state.pokemon[i] = this.serializePokemon(pokemon);
-			team[side.team.indexOf(pokemon.set)] = i + 1;
+			team[side.team.indexOf(pokemon.set)] = i + 1; // TODO!!!
 		}
 		state.team = team.join(team.length > 9 ? ',' : '');
 		state.choice = this.serializeChoice(side.choice, side.battle);
@@ -236,8 +236,7 @@ export const State = new class {
 				}
 
 				const o: any = {};
-				const sorted = Object.entries(obj).sort();
-				for (const [key, value] of sorted) {
+				for (const [key, value] of this.sortedByKey(obj)) {
 					o[key] = this.serializeWithRefs(value, battle);
 				}
 				return o;
@@ -324,8 +323,7 @@ export const State = new class {
 
 	private serialize(obj: object, skip: Set<string>, battle: Battle): AnyObject {
 		const state: AnyObject = {};
-		const sorted = Object.entries(obj).sort();
-		for (const [key, value] of sorted) {
+		for (const [key, value] of this.sortedByKey(obj)) {
 			if (skip.has(key)) continue;
 			state[key] = this.serializeWithRefs(value, battle);
 		}
@@ -338,5 +336,10 @@ export const State = new class {
 			// @ts-ignore - index signature
 			obj[key] = this.deserializeWithRefs(value, battle);
 		}
+	}
+
+	// TODO explain need stable
+	private sortedByKey(obj: object): [string, unknown][] {
+		return Object.entries(obj).sort((a, b) => +(a[0] > b[0]) || -(a[0] < b[0]));
 	}
 };
