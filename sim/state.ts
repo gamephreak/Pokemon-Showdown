@@ -137,7 +137,7 @@ export const State = new class {
 		choice.switchIns = new Set(state.switchIns);
 	}
 
-	private isActiveMove(obj: AnyObject) {
+	private isActiveMove(obj: AnyObject): obj is ActiveMove {
 		return obj.hasOwnProperty('hit') && obj.hasOwnProperty('id');
 	}
 
@@ -154,7 +154,7 @@ export const State = new class {
 		return move;
 	}
 
-	private serializeWithRefs(obj: any, battle: Battle): any {
+	private serializeWithRefs(obj: unknown, battle: Battle): unknown {
 		switch (typeof obj) {
 			case 'function':
 				return undefined; // elide functions
@@ -223,7 +223,7 @@ export const State = new class {
 	// NOTE: Can't be a constant because Battle and Field will be undefined due
 	// to being circular dependencies.
 	// NOTE: Formats which use onModifyTemplate will not be properly serializable.
-	private isReferable(obj: any): boolean {
+	private isReferable(obj: any): obj is Referable {
 		if (!this.REFERABLE) {
 			// @ts-ignore - globals.ts nonsense
 			this.REFERABLE = new Set([
@@ -263,7 +263,7 @@ export const State = new class {
 		}
 	}
 
-	private serialize(obj: any, skip: Set<string>, battle: Battle): AnyObject {
+	private serialize(obj: {}, skip: Set<string>, battle: Battle): AnyObject {
 		const state: AnyObject = {};
 		for (const [key, value] of Object.entries(obj)) {
 			if (skip.has(key)) continue;
@@ -272,7 +272,7 @@ export const State = new class {
 		return state;
 	}
 
-	private deserialize(state: AnyObject, obj: any, skip: Set<string>, battle: Battle) {
+	private deserialize(state: AnyObject, obj: AnyObject, skip: Set<string>, battle: Battle) {
 		for (const [key, value] of Object.entries(state)) {
 			if (skip.has(key)) continue;
 			obj[key] = this.deserializeWithRefs(value, battle);
