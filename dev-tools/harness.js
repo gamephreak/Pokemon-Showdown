@@ -16,12 +16,10 @@ const shell = cmd => child_process.execSync(cmd, {stdio: 'inherit', cwd: __dirna
 // NOTE: `require('../build')` is not safe because `replace` is async.
 if (require.main === module) shell('node ../build');
 
-global.Config = {};
 const Battle = require('../.sim-dist/battle').Battle;
 const BattleStreams = require('../.sim-dist/battle-stream');
 const PRNG = require('../.sim-dist/prng').PRNG;
 const RandomPlayerAI = require('../.sim-dist/examples/random-player-ai').RandomPlayerAI;
-const Streams = require('../.lib-dist/streams');
 
 // 'move' 70% of the time (ie. 'switch' 30%) and ' mega' 60% of the time that its an option.
 const AI_OPTIONS = {move: 0.7, mega: 0.6, createAI: (s, o) => new RandomPlayerAI(s, o)};
@@ -47,11 +45,8 @@ class Runner {
 
 	async run() {
 		const battleStream =
-			this.dual ? new DualRawBattleStream(this.input) : new RawBattleStream(this.input);
-		const game = this.runGame(this.format, battleStream).then(() => {
-			console.log('HELLOW');
-			if (!battleStream.ended) throw new Error('BattleStream was not ended');
-		});
+			this.dual ? new DualStream(this.input) : new RawBattleStream(this.input);
+		const game = this.runGame(this.format, battleStream);
 		if (!this.error) return game;
 		return game.catch(err => {
 			console.log(`\n${battleStream.rawInputLog.join('\n')}\n`);
@@ -114,16 +109,10 @@ class RawBattleStream extends BattleStreams.BattleStream {
 		this.rawInputLog.push(message);
 		super._write(message);
 	}
-
-	_end() {
-		super._end();
-		this.ended = true;
-	}
 }
 
-class DualRawBattleStream extends Streams.ObjectReadWriteStream {
+class DualStream {
 	constructor(input) {
-		super();
 		this.control = new RawBattleStream(input);
 		this.test = new RawBattleStream(false);
 	}
@@ -136,28 +125,22 @@ class DualRawBattleStream extends Streams.ObjectReadWriteStream {
 	}
 
 	async read() {
-		console.log('READ');
-		await super.read(); // propagate any errors
 		const control = await this.control.read();
 		const test = await this.test.read();
 		this.verify(control, test);
 		return control;
 	}
 
-	async _write(message) {
-		console.log('WRITE');
-		this.push(message); // propagate any errors
+	async write(message) {
 		await this.control._write(message);
 		await this.test._write(message);
-
 		this.compare();
 	}
 
-	async _end() {
+	async end() {
 		await this.control._end();
 		await this.test._end();
 		this.compare();
-		this.ended = true;
 	}
 
 	compare() {
@@ -172,8 +155,8 @@ class DualRawBattleStream extends Streams.ObjectReadWriteStream {
 
 	verify(control, test) {
 		if (test !== control) {
-			//console.log(control);
-			//console.error(test);
+			console.log(control);
+			console.error(test);
 			process.exit(1);
 		}
 	}
