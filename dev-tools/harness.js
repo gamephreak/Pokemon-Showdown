@@ -141,17 +141,17 @@ class DualStream {
 	}
 
 	async end() {
-		console.log('end', !this.control.battle, !this.test.battle);
-		await this.control._end();
-		await this.test._end();
+		//console.log('end', !this.control.battle, !this.test.battle);
+		//await this.control._end();
+		//await this.test._end();
 		this.compare(true);
 	}
 
 	compare(end) {
 		if (!this.control.battle || !this.test.battle) return;
-		if (end) throw new Error('wtf end');
+		//if (end) throw new Error('wtf end');
 		const control = stringify(this.control.battle, {space: '  '});
-		if (end) console.log('END2');
+		//if (end) console.log('END2');
 		const test = stringify(this.test.battle, {space: '  ' });
 		this.verify(control, test, end);
 		const send = this.test.battle.send;
