@@ -213,11 +213,8 @@ export class Battle extends Dex.ModdedDex {
 		return State.serializeBattle(this);
 	}
 
-	static fromJSON(
-		serialized: string | AnyObject,
-		send?: (type: string, data: string | string[]) => void
-	): Battle {
-		return State.deserializeBattle(serialized, send);
+	static fromJSON(serialized: string | AnyObject): Battle {
+		return State.deserializeBattle(serialized);
 	}
 
 	get p1() {

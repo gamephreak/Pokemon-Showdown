@@ -12,6 +12,8 @@
 const child_process = require('child_process');
 const shell = cmd => child_process.execSync(cmd, {stdio: 'inherit', cwd: __dirname});
 
+var stringify = require('json-stable-stringify');
+
 // Run the build script if we're being called from the command line.
 // NOTE: `require('../build')` is not safe because `replace` is async.
 if (require.main === module) shell('node ../build');
@@ -111,30 +113,41 @@ class RawBattleStream extends BattleStreams.BattleStream {
 	}
 }
 
+const Mutex = require('async-mutex').Mutex;
+const mutex = new Mutex();
+
 class DualStream {
 	constructor(input) {
 		this.control = new RawBattleStream(input);
 		this.test = new RawBattleStream(false);
 	}
 
-	get rawInputLog() {
-		const control = this.control.rawInputLog;
-		const test = this.test.rawInputLog;
-		this.verify(control.join('\n'), test.join('\n'));
-		return control;
-	}
-
 	async read() {
-		const control = await this.control.read();
-		const test = await this.test.read();
-		this.verify(control, test);
-		return control;
+		console.log('read');
+		return mutex.runExclusive(async () => {
+				console.log('reading control');
+				const control = await this.control.read();
+				console.log('reading test');
+				const test = await this.test.read();
+				console.log('read verify');
+				this.verify(control, test);
+				return control;
+		});
 	}
 
 	async write(message) {
-		await this.control._write(message);
-		await this.test._write(message);
-		this.compare();
+		console.log('write');
+		const release = await mutex.acquire();
+		try {
+			console.log('writing control');
+			await this.control._write(message);
+			console.log('writing test');
+			await this.test._write(message);
+			console.log('write compare');
+			this.compare();
+		} finally {
+			release();
+		}
 	}
 
 	async end() {
@@ -145,8 +158,8 @@ class DualStream {
 
 	compare() {
 		if (!this.control.battle || !this.test.battle) return;
-		const control = JSON.stringify(this.control.battle, null, 2);
-		const test = JSON.stringify(this.test.battle, null, 2);
+		const control = stringify(this.control.battle, {space: '  '});
+		const test = stringify(this.test.battle, {space: '  ' });
 		this.verify(control, test);
 		const send = this.test.battle.send;
 		this.test.battle = Battle.fromJSON(test);
@@ -155,8 +168,8 @@ class DualStream {
 
 	verify(control, test) {
 		if (test !== control) {
-			console.log(control);
-			console.error(test);
+			//console.log(control);
+			//console.error(test);
 			process.exit(1);
 		}
 	}
