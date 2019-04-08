@@ -48,7 +48,10 @@ class Runner {
 	async run() {
 		const battleStream =
 			this.dual ? new DualRawBattleStream(this.input) : new RawBattleStream(this.input);
-		const game = this.runGame(this.format, battleStream);
+		const game = this.runGame(this.format, battleStream).then(() => {
+			console.log('HELLOW');
+			if (!battleStream.ended) throw new Error('BattleStream was not ended');
+		});
 		if (!this.error) return game;
 		return game.catch(err => {
 			console.log(`\n${battleStream.rawInputLog.join('\n')}\n`);
@@ -111,6 +114,11 @@ class RawBattleStream extends BattleStreams.BattleStream {
 		this.rawInputLog.push(message);
 		super._write(message);
 	}
+
+	_end() {
+		super._end();
+		this.ended = true;
+	}
 }
 
 class DualRawBattleStream extends Streams.ObjectReadWriteStream {
@@ -128,6 +136,8 @@ class DualRawBattleStream extends Streams.ObjectReadWriteStream {
 	}
 
 	async read() {
+		console.log('READ');
+		await super.read(); // propagate any errors
 		const control = await this.control.read();
 		const test = await this.test.read();
 		this.verify(control, test);
@@ -135,8 +145,11 @@ class DualRawBattleStream extends Streams.ObjectReadWriteStream {
 	}
 
 	async _write(message) {
+		console.log('WRITE');
+		this.push(message); // propagate any errors
 		await this.control._write(message);
 		await this.test._write(message);
+
 		this.compare();
 	}
 
@@ -144,6 +157,7 @@ class DualRawBattleStream extends Streams.ObjectReadWriteStream {
 		await this.control._end();
 		await this.test._end();
 		this.compare();
+		this.ended = true;
 	}
 
 	compare() {
@@ -158,8 +172,8 @@ class DualRawBattleStream extends Streams.ObjectReadWriteStream {
 
 	verify(control, test) {
 		if (test !== control) {
-			console.log(control);
-			console.error(test);
+			//console.log(control);
+			//console.error(test);
 			process.exit(1);
 		}
 	}

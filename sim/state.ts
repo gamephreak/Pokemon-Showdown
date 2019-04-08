@@ -346,7 +346,9 @@ export const State = new class {
 		}
 	}
 
-	// TODO explain need stable
+	// For testing/verification purposes we need the serialization algorithm to be stable, so
+	// we need to make sure we assign fields in the same order each time, independent of how
+	// keys may hav been assigned to objects in different orders
 	private sortedByKey(obj: object): [string, unknown][] {
 		return Object.entries(obj).sort((a, b) => +(a[0] > b[0]) || -(a[0] < b[0]));
 	}
