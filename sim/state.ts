@@ -68,7 +68,7 @@ export const State = new class {
 			state.sides[i] = this.serializeSide(side);
 		}
 		state.prng = battle.prng.seed;
-		state.hints = Array.from(battle.hints);
+		state.hints = this.serializeSet(battle.hints);
 		return state;
 	}
 
@@ -113,7 +113,7 @@ export const State = new class {
 		}
 		battle.prng = new PRNG(state.prng);
 		// @ts-ignore - readonly
-		battle.hints = new Set(battle.hints);
+		battle.hints = this.deserializeSet(battle.hints);
 		return battle;
 	}
 
@@ -166,13 +166,13 @@ export const State = new class {
 
 	private serializeChoice(choice: Choice, battle: Battle): /* Choice */ AnyObject {
 		const state: /* Choice */ AnyObject = this.serialize(choice, CHOICE, battle);
-		state.switchIns = Array.from(choice.switchIns as Set<number>);
+		state.switchIns = this.serializeSet(choice.switchIns);
 		return state;
 	}
 
 	private deserializeChoice(state: /* Choice */ AnyObject, choice: Choice, battle: Battle) {
 		this.deserialize(state, choice, CHOICE, battle);
-		choice.switchIns = new Set(state.switchIns);
+		choice.switchIns = this.deserializeSet(state.switchIns);
 	}
 
 	// Simply looking for a 'hit' field to determine if an object is an ActiveMove or not seems
@@ -202,6 +202,14 @@ export const State = new class {
 		const move = battle.getActiveMove(this.fromRef(state.move, battle)! as Move);
 		this.deserialize(state, move, ACTIVE_MOVE, battle);
 		return move;
+	}
+
+	private serializeSet<T>(set: Set<T>): T[] {
+		return Array.from(set).sort();
+	}
+
+	private deserializeSet<T>(set: T[]): Set<T> {
+		return new Set(set);
 	}
 
 	private serializeWithRefs(obj: unknown, battle: Battle): unknown {
