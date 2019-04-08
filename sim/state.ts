@@ -68,7 +68,7 @@ export const State = new class {
 			state.sides[i] = this.serializeSide(side);
 		}
 		state.prng = battle.prng.seed;
-		state.hints = this.serializeSet(battle.hints);
+		state.hints = Array.from(battle.hints);
 		return state;
 	}
 
@@ -113,7 +113,7 @@ export const State = new class {
 		}
 		battle.prng = new PRNG(state.prng);
 		// @ts-ignore - readonly
-		battle.hints = this.deserializeSet(battle.hints);
+		battle.hints = new Set(battle.hints);
 		return battle;
 	}
 
@@ -166,13 +166,13 @@ export const State = new class {
 
 	private serializeChoice(choice: Choice, battle: Battle): /* Choice */ AnyObject {
 		const state: /* Choice */ AnyObject = this.serialize(choice, CHOICE, battle);
-		state.switchIns = this.serializeSet(choice.switchIns);
+		state.switchIns = Array.from(choice.switchIns);
 		return state;
 	}
 
 	private deserializeChoice(state: /* Choice */ AnyObject, choice: Choice, battle: Battle) {
 		this.deserialize(state, choice, CHOICE, battle);
-		choice.switchIns = this.deserializeSet(state.switchIns);
+		choice.switchIns = new Set(state.switchIns);
 	}
 
 	// Simply looking for a 'hit' field to determine if an object is an ActiveMove or not seems
@@ -202,14 +202,6 @@ export const State = new class {
 		const move = battle.getActiveMove(this.fromRef(state.move, battle)! as Move);
 		this.deserialize(state, move, ACTIVE_MOVE, battle);
 		return move;
-	}
-
-	private serializeSet<T>(set: Set<T>): T[] {
-		return Array.from(set).sort();
-	}
-
-	private deserializeSet<T>(set: T[]): Set<T> {
-		return new Set(set);
 	}
 
 	private serializeWithRefs(obj: unknown, battle: Battle): unknown {
@@ -244,7 +236,7 @@ export const State = new class {
 				}
 
 				const o: any = {};
-				for (const [key, value] of this.sortedByKey(obj)) {
+				for (const [key, value] of Object.entries(obj)) {
 					o[key] = this.serializeWithRefs(value, battle);
 				}
 				return o;
@@ -331,7 +323,7 @@ export const State = new class {
 
 	private serialize(obj: object, skip: Set<string>, battle: Battle): AnyObject {
 		const state: AnyObject = {};
-		for (const [key, value] of this.sortedByKey(obj)) {
+		for (const [key, value] of Object.entries(obj)) {
 			if (skip.has(key)) continue;
 			state[key] = this.serializeWithRefs(value, battle);
 		}
@@ -344,12 +336,5 @@ export const State = new class {
 			// @ts-ignore - index signature
 			obj[key] = this.deserializeWithRefs(value, battle);
 		}
-	}
-
-	// For testing/verification purposes we need the serialization algorithm to be stable, so
-	// we need to make sure we assign fields in the same order each time, independent of how
-	// keys may hav been assigned to objects in different orders
-	private sortedByKey(obj: object): [string, unknown][] {
-		return Object.entries(obj).sort((a, b) => +(a[0] > b[0]) || -(a[0] < b[0]));
 	}
 };
