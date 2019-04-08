@@ -291,7 +291,6 @@ export abstract class BattlePlayer {
 	}
 
 	choose(choice: string) {
-		console.log('making choice', choice);
 		this.stream.write(choice);
 	}
 }

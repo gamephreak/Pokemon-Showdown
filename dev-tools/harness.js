@@ -123,53 +123,46 @@ class DualStream {
 	}
 
 	async read() {
-		console.log('read');
-		return mutex.runExclusive(async () => {
-				console.log('reading control');
-				const control = await this.control.read();
-				console.log('reading test');
-				const test = await this.test.read();
-				console.log('read verify');
-				this.verify(control, test);
-				return control;
-		});
+		const control = await this.control.read();
+		const test = await this.test.read();
+		this.verify(control, test);
+		return control;
 	}
 
 	async write(message) {
-		console.log('write');
-		const release = await mutex.acquire();
-		try {
-			console.log('writing control');
+		// const release = await mutex.acquire();
+		// try {
 			await this.control._write(message);
-			console.log('writing test');
 			await this.test._write(message);
-			console.log('write compare');
-			this.compare();
-		} finally {
-			release();
-		}
+			//this.compare();
+		// } finally {
+		// 	release();
+		// }
 	}
 
 	async end() {
+		console.log('end', !this.control.battle, !this.test.battle);
 		await this.control._end();
 		await this.test._end();
-		this.compare();
+		this.compare(true);
 	}
 
-	compare() {
+	compare(end) {
 		if (!this.control.battle || !this.test.battle) return;
+		if (end) throw new Error('wtf end');
 		const control = stringify(this.control.battle, {space: '  '});
+		if (end) console.log('END2');
 		const test = stringify(this.test.battle, {space: '  ' });
-		this.verify(control, test);
+		this.verify(control, test, end);
 		const send = this.test.battle.send;
 		this.test.battle = Battle.fromJSON(test);
 		this.test.battle.restart(send);
 	}
 
-	verify(control, test) {
-		if (test !== control) {
-			//console.log(control);
-			//console.error(test);
+	verify(control, test, end) {
+		if (test !== control || end) {
+			console.log(control);
+			console.error(test);
 			process.exit(1);
 		}
 	}
