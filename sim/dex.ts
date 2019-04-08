@@ -455,11 +455,13 @@ class ModdedDex {
 	 *     moveCopyCopy = Dex.getActiveMove(moveCopy.id)
 	 */
 	getActiveMove(move: Move | string): ActiveMove {
-		if (move && typeof (move as ActiveMove).hit === 'number') return move as ActiveMove;
-		move = this.getMove(move);
-		const moveCopy: ActiveMove = this.deepClone(move);
-		moveCopy.hit = 0;
-		return moveCopy;
+		if (move && typeof (move as ActiveMove).hit === 'number' && (move as Move).id) return move as ActiveMove;
+		return this.makeActiveMoveData(this.deepClone(this.getMove(move))) as ActiveMove;
+	}
+
+	makeActiveMoveData(data: AnyObject): ActiveMoveData {
+		data.hit = 0;
+		return data as ActiveMoveData;
 	}
 
 	/**

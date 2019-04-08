@@ -876,8 +876,7 @@ type MoveHitData = {[targetSlotid: string]: {
 	zBrokeProtect: boolean;
 }}
 
-interface ActiveMove extends BasicEffect, MoveData {
-	readonly effectType: 'Move'
+interface ActiveMoveData {
 	hit: number
 	moveHitData?: MoveHitData
 	ability?: Ability
@@ -910,6 +909,10 @@ interface ActiveMove extends BasicEffect, MoveData {
 	 * truthy.
 	 */
 	isZPowered?: boolean
+}
+
+interface ActiveMove extends ActiveMoveData, BasicEffect, MoveData {
+	readonly effectType: 'Move'
 }
 
 type TemplateAbility = {0: string, 1?: string, H?: string, S?: string}

@@ -687,14 +687,13 @@ let BattleScripts = {
 		if (typeof move === 'string') {
 			move = this.getActiveMove(move);
 		} else if (typeof move === 'number') {
-			// @ts-ignore
-			move = /** @type {ActiveMove} */ ({
+			move = /** @type {ActiveMove} */(this.makeActiveMoveData({
 				basePower: move,
 				type: '???',
 				category: 'Physical',
 				willCrit: false,
 				flags: {},
-			});
+			}));
 		}
 
 		// Let's see if the target is immune to the move.
