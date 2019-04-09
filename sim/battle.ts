@@ -1030,11 +1030,23 @@ export class Battle extends Dex.ModdedDex {
 			type = this.requestState;
 		}
 
-		// default to no request
-		const requests: any[] = Array(this.sides.length).fill(null);
 		for (const side of this.sides) {
 			side.activeRequest = null;
 		}
+
+		const requests = this.getRequests(type);
+		for (let i = 0; i < this.sides.length; i++) {
+			this.sides[i].emitRequest(requests[i]);
+		}
+
+		if (this.sides.every(side => side.isChoiceDone())) {
+			throw new Error(`Choices are done immediately after a request`);
+		}
+	}
+
+	getRequests(type: RequestState) {
+		// default to no request
+		const requests: any[] = Array(this.sides.length).fill(null);
 
 		switch (type) {
 		case 'switch': {
@@ -1075,19 +1087,14 @@ export class Battle extends Dex.ModdedDex {
 
 		const allRequestsMade = requests.every(request => request);
 		for (let i = 0; i < this.sides.length; i++) {
-			const side = this.sides[i];
-			const request = requests[i];
-			if (request) {
-				if (!this.supportCancel || !allRequestsMade) request.noCancel = true;
-				side.emitRequest(request);
+			if (requests[i]) {
+				if (!this.supportCancel || !allRequestsMade) requests[i].noCancel = true;
 			} else {
-				side.emitRequest({wait: true, side: side.getRequestData()});
+				requests[i] = {wait: true, side: this.sides[i].getRequestData()};
 			}
 		}
 
-		if (this.sides.every(side => side.isChoiceDone())) {
-			throw new Error(`Choices are done immediately after a request`);
-		}
+		return requests;
 	}
 
 	tiebreak() {
@@ -1322,6 +1329,12 @@ export class Battle extends Dex.ModdedDex {
 
 	nextTurn() {
 		this.turn++;
+		 if (this.turn === 10) {
+				  const toJSON = JSON.stringify(this, null, 2);
+				  console.log(toJSON);
+				  const fromJSON = Battle.fromJSON(toJSON);
+				  console.error(JSON.stringify(fromJSON, null, 2));
+		 }
 		let allStale = true;
 		let oneStale: Pokemon | null = null;
 		for (const side of this.sides) {
@@ -2879,7 +2892,7 @@ export class Battle extends Dex.ModdedDex {
 
 		this.requestState = '';
 		for (const side of this.sides) {
-			side.activeRequest = null;
+			//side.activeRequest = null;
 		}
 
 		this.go();

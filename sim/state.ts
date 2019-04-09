@@ -40,7 +40,7 @@ const BATTLE = new Set([
 	'NOT_FAIL', 'FAIL', 'SILENT_FAIL', 'field', 'sides', 'prng', 'hints', 'deserialized',
 ]);
 const FIELD = new Set(['id', 'battle']);
-const SIDE = new Set(['battle', 'team', 'pokemon', 'choice']);
+const SIDE = new Set(['battle', 'team', 'pokemon', 'choice', 'activeRequest']);
 const POKEMON = new Set([
 	'side', 'battle', 'set', 'name', 'fullname', 'id', 'species', 'speciesid', 'happiness',
 	'level', 'pokeball', 'baseTemplate', 'baseHpType', 'baseHpPower', 'baseMoveSlots',
@@ -116,6 +116,11 @@ export const State = new class {
 		for (const [i, side] of state.sides.entries()) {
 			this.deserializeSide(side, battle.sides[i]);
 		}
+		const requests = battle.getRequests(battle.requestState);
+		for (const [i, request] of requests.entries()) {
+			const side = state.sides[i];
+			side.activeRequest = state.sides[i].activeRequest === null ? null : request;
+		}
 		battle.prng = new PRNG(state.prng);
 		// @ts-ignore - readonly
 		battle.hints = new Set(battle.hints);
@@ -147,6 +152,10 @@ export const State = new class {
 		// amount of complexity to the encoding/decoding process to accommodate this.
 		state.team = team.join(team.length > 9 ? ',' : '');
 		state.choice = this.serializeChoice(side.choice, side.battle);
+		// Only if we don't have an activeRequest do we include encode it. This serves
+		// as a tombstone indicator to ensure that during serialization we don't turn
+		// `activeRequest = null` into `activeRequest = { wait: true, ... }`.
+		if (side.activeRequest === null) state.activeRequest = null;
 		return state;
 	}
 
@@ -187,6 +196,18 @@ export const State = new class {
 	}
 
 	private deserializeChoice(state: /* Choice */ AnyObject, choice: Choice, battle: Battle) {
+		this.deserialize(state, choice, CHOICE, battle);
+		choice.switchIns = new Set(state.switchIns);
+	}
+
+
+	private serializeActiveRequest(choice: Choice, battle: Battle): /* Choice */ AnyObject {
+		const state: /* Choice */ AnyObject = this.serialize(choice, CHOICE, battle);
+		state.switchIns = Array.from(choice.switchIns);
+		return state;
+	}
+
+	private deserializeActiveRequest(state: /* Choice */ AnyObject, choice: Choice, battle: Battle) {
 		this.deserialize(state, choice, CHOICE, battle);
 		choice.switchIns = new Set(state.switchIns);
 	}
