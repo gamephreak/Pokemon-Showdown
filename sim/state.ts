@@ -36,11 +36,11 @@ type Referable = Battle | Field | Side | Pokemon | PureEffect | Ability | Item |
 // Battle inherits from Dex, but all of Dex's fields are redundant - we can
 // just recreate the Dex from the format.
 const BATTLE = new Set([
-	...Object.keys(Dex), 'inherit', 'cachedFormat', 'zMoveTable', 'teamGenerator',
+	...Object.keys(Dex), 'id', 'inherit', 'cachedFormat', 'zMoveTable', 'teamGenerator',
 	'NOT_FAIL', 'FAIL', 'SILENT_FAIL', 'field', 'sides', 'prng', 'hints', 'deserialized',
 ]);
 const FIELD = new Set(['id', 'battle']);
-const SIDE = new Set(['battle', 'team', 'pokemon', 'choice']);
+const SIDE = new Set(['battle', 'team', 'pokemon', 'choice', 'activeRequest']);
 const POKEMON = new Set([
 	'side', 'battle', 'set', 'name', 'fullname', 'id', 'species', 'speciesid', 'happiness',
 	'level', 'pokeball', 'baseTemplate', 'baseHpType', 'baseHpPower', 'baseMoveSlots',
@@ -111,10 +111,26 @@ export const State = new class {
 		// down through the fields and repopulate all of the objects with the
 		// correct state.
 		const battle = new Battle(options);
+		// Calling `new Battle(...)` means side.pokemon is ordered to match what it
+		// was at the start of the battle (state.team), but we need to order the Pokemon
+		// back in their correct order based on how the battle has progressed. We need
+		// do to this before making any deserialization calls so that `fromRef` will
+		// be correct.
+		for (const [i, s] of state.sides.entries()) {
+			const side = battle.sides[i];
+			const ordered = new Array(side.pokemon.length);
+			const team = s.team.split(s.team.length > 9 ? ',' : '');
+			for (const [j, pos] of team.entries()) {
+				ordered[Number(pos) - 1] = side.pokemon[j];
+			}
+			side.pokemon = ordered;
+		}
 		this.deserialize(state, battle, BATTLE, battle);
 		this.deserializeField(state.field, battle.field);
+		const requests = battle.getRequests(battle.requestState, battle.getMaxTeamSize());
 		for (const [i, side] of state.sides.entries()) {
 			this.deserializeSide(side, battle.sides[i]);
+			battle.sides[i].activeRequest = side.activeRequest === null ? null : requests[i];
 		}
 		battle.prng = new PRNG(state.prng);
 		// @ts-ignore - readonly
@@ -147,21 +163,15 @@ export const State = new class {
 		// amount of complexity to the encoding/decoding process to accommodate this.
 		state.team = team.join(team.length > 9 ? ',' : '');
 		state.choice = this.serializeChoice(side.choice, side.battle);
+		// If activeRequest is null we encode it as a tombstone indicator to ensure
+		// that during serialization when we recompute the activeRequest we don't turn
+		// `activeRequest = null` into  `activeRequest = { wait: true, ... }`.
+		if (side.activeRequest === null) state.activeRequest = null;
 		return state;
 	}
 
 	private deserializeSide(state: /* Side */ AnyObject, side: Side) {
 		this.deserialize(state, side, SIDE, side.battle);
-		const ordered = new Array(side.pokemon.length);
-		// deserializeBattle calls `new Battle(...)` with the Pokemon ordered
-		// as they were at the start of the battle (state.team), but we need
-		// to order the Pokemon back in their correct order based on how the
-		// battle has progressed.
-		const team = state.team.split(state.team.length > 9 ? ',' : '');
-		for (const [i, pos] of team.entries()) {
-			ordered[Number(pos) - 1] = side.pokemon[i];
-		}
-		side.pokemon = ordered;
 		for (const [i, pokemon] of state.pokemon.entries()) {
 			this.deserializePokemon(pokemon, side.pokemon[i]);
 		}
@@ -304,7 +314,7 @@ export const State = new class {
 	}
 
 	private toRef(obj: Referable): string {
-		// Pokemon's 'id' is not only more verbose than a postion, it also isn't guaranteed
+		// Pokemon's 'id' is not only more verbose than a position, it also isn't guaranteed
 		// to be uniquely identifying in custom games without Nickname/Species Clause.
 		const id = obj instanceof Pokemon ? `${obj.side.id}${POSITIONS[obj.position]}` : `${obj.id}`;
 		return `[${obj.constructor.name}${id ? ':' : ''}${id}]`;
