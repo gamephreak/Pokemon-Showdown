@@ -1625,7 +1625,6 @@ export class Battle extends Dex.ModdedDex {
 			this.start();
 			return;
 		}
-		if (!this.requestState) this.go();
 	}
 
 	boost(

@@ -127,9 +127,13 @@ export const State = new class {
 		}
 		this.deserialize(state, battle, BATTLE, battle);
 		this.deserializeField(state.field, battle.field);
-		const requests = battle.getRequests(battle.requestState, battle.getMaxTeamSize());
 		for (const [i, side] of state.sides.entries()) {
 			this.deserializeSide(side, battle.sides[i]);
+		}
+		// Since battle.getRequests depends on the state of each side we can't combine
+		// this loop with the one above which deserializes the sides.
+		const requests = battle.getRequests(battle.requestState, battle.getMaxTeamSize());
+		for (const [i, side] of state.sides.entries()) {
 			battle.sides[i].activeRequest = side.activeRequest === null ? null : requests[i];
 		}
 		battle.prng = new PRNG(state.prng);
@@ -181,6 +185,11 @@ export const State = new class {
 	serializePokemon(pokemon: Pokemon): /* Pokemon */ AnyObject {
 		const state: /* Pokemon */ AnyObject = this.serialize(pokemon, POKEMON, pokemon.battle);
 		state.set = pokemon.set;
+		// Only serialize the baseMoveSlots if they differ from moveSlots
+		if (pokemon.baseMoveSlots.length !== pokemon.moveSlots.length ||
+			!pokemon.baseMoveSlots.every((ms, i) => ms === pokemon.moveSlots[i])) {
+			state.baseMoveSlots = this.serializeWithRefs(pokemon.baseMoveSlots, pokemon.battle);
+		}
 		return state;
 	}
 
@@ -188,6 +197,13 @@ export const State = new class {
 		this.deserialize(state, pokemon, POKEMON, pokemon.battle);
 		// @ts-ignore - readonly
 		pokemon.set = state.set;
+		if (state.baseMoveSlots) {
+			// TODO: is there a case where *some* move slots overlap and we need them to be
+			// shared with pokemon.moveSlots?
+			pokemon.baseMoveSlots = this.deserializeWithRefs(pokemon.baseMoveSlots, pokemon.battle);
+		} else {
+			pokemon.baseMoveSlots = pokemon.moveSlots.slice();
+		}
 	}
 
 	private serializeChoice(choice: Choice, battle: Battle): /* Choice */ AnyObject {
@@ -362,5 +378,42 @@ export const State = new class {
 			// @ts-ignore - index signature
 			obj[key] = this.deserializeWithRefs(value, battle);
 		}
+	}
+
+	// A super pared down implementation of deepStrictEqual for serialized state objects (NOT GENERAL PURPOSE).
+	// This is required for testing purposes because `JSON.stringify(a) === JSON.stringify(b)` will have
+	// ordering issues (deserializing the Battle will cause fields to have been set in a different order,
+	// changing the field ordering in the resulting string) and assert.deepStrictEqual will complain about keys
+	// being absent vs. undefined, which we don't care about.
+	equal(a: AnyObject, b: AnyObject) {
+		if (a === b) return true;
+		if ((a === null || typeof a !== 'object') && (b === null || typeof b !== 'object')) return a === b;
+		if (a === null || a === undefined || b === null || b === undefined) return false;
+		const isPrimitive = arg => arg === null || typeof arg !== 'object' && typeof arg !== 'function';
+		if (isPrimitive(a) || isPrimitive(b)) return a === b;
+		if (Object.getPrototypeOf(a) !== Object.getPrototypeOf(b)) return false;
+
+		// We don't care to distinguish between keys which are absent vs. undefined (because once
+		// stringified the distinction is lost anyway), so we filter them out here.
+		const hasOwnProperty = Object.prototype.hasOwnProperty;
+		const definedKeys = obj => {
+			const keys = [];
+			for (const key in obj) {
+				if (hasOwnProperty.call(obj, key) && typeof obj[key] !== 'undefined') keys.push(key);
+			}
+			return keys;
+		};
+
+		const ka = definedKeys(a);
+		const kb = definedKeys(b);
+		if (ka.length !== kb.length) return false;
+
+		ka.sort();
+		kb.sort();
+
+		for (const key of ka) {
+			if (!State.equal(a[key], b[key])) return false;
+		}
+		return true;
 	}
 };

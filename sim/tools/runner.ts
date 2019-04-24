@@ -10,6 +10,7 @@ import {Battle} from '../battle';
 import * as BattleStreams from '../battle-stream';
 import {PRNG, PRNGSeed} from '../prng';
 import {RandomPlayerAI} from './random-player-ai';
+import {State} from '../state';
 
 export interface AIOptions {
 	createAI: (stream: ObjectReadWriteStream<string>, options: AIOptions) => RandomPlayerAI;
@@ -185,13 +186,15 @@ class DualStream {
 	compare() {
 		if (!this.control.battle || !this.test.battle) return;
 
-		const control = JSON.stringify(this.control.battle, null, 2);
-		const test = JSON.stringify(this.test.battle, null, 2);
-		this.verify(control, test);
+		const control = this.control.battle.toJSON();
+		const test = this.test.battle.toJSON();
+		if (!State.equal(control, test)) {
+			this.verify(JSON.stringify(control, null, 2), JSON.stringify(test, null, 2));
+		}
 
-		// const send = this.test.battle.send;
-		// this.test.battle = Battle.fromJSON(test);
-		// this.test.battle.restart(send);
+		const send = this.test.battle.send;
+		this.test.battle = Battle.fromJSON(test);
+		this.test.battle.restart(send);
 	}
 
 	verify(control?: string | null, test?: string | null) {

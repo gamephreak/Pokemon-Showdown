@@ -2,7 +2,8 @@
 
 const assert = require('./../../assert');
 const common = require('./../../common');
-const Battle = require('./../../../.sim-dist').Battle;
+const Battle = require('./../../../.sim-dist/battle').Battle;
+const State = require('./../../../.sim-dist/state').State;
 
 const TEAMS = [[
 	{species: 'Mew', ability: 'synchronize', item: 'assaultvest', moves: ['psychic']},
@@ -20,9 +21,9 @@ const TEAMS = [[
 	{species: 'Snorlax', ability: 'thickfat', item: 'leftovers', moves: ['rest']},
 ]];
 
-describe.skip('State', function () {
+describe('State', function () {
 	describe('Battles', function () {
-		it('should be able to be serialized and deserialized without affecting functionality', function (done) {
+		it('should be able to be serialized and deserialized without affecting functionality', function () {
 			const control = common.createBattle(TEAMS);
 			let test = common.createBattle(TEAMS);
 
@@ -30,7 +31,9 @@ describe.skip('State', function () {
 				control.makeChoices();
 				test.makeChoices();
 
-				assert.deepStrictEqual(control.toJSON(), test.toJSON());
+				const actual = test.toJSON();
+				const expected = control.toJSON();
+				if (!State.equal(actual, expected)) assert.deepStrictEqual(actual, expected);
 
 				// Roundtrip the test battle to confirm it still works.
 				const send = test.send;
