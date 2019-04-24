@@ -137,10 +137,13 @@ class RawBattleStream extends BattleStreams.BattleStream {
 }
 
 class DualStream {
+	private readonly mutex: Mutex;
+
 	private readonly control: RawBattleStream;
 	private test: RawBattleStream;
 
 	constructor(input: boolean) {
+		this.mutex = new Mutex();
 		// The input to both streams should be the same, so to satisfy the
 		// input flag we only need to track the raw input of one stream.
 		this.control = new RawBattleStream(input);
@@ -162,14 +165,14 @@ class DualStream {
 	}
 
 	async write(message: string) {
-		// const release = await mutex.acquire();
-		// try {
+		 const release = await this.mutex.acquire();
+		 try {
 			await this.control._write(message);
 			await this.test._write(message);
 			this.compare();
-		// } finally {
-		// 	release();
-		// }
+		 } finally {
+			 release();
+		 }
 	}
 
 	async end() {
@@ -196,6 +199,31 @@ class DualStream {
 			console.log(control);
 			console.error(test);
 			process.exit(1);
+		}
+	}
+}
+
+class Mutex {
+	private readonly queue: Array<(release: () => void) => void>;
+	private pending: boolean;
+
+	constructor() {
+		this.queue = [];
+		this.pending = false;
+	}
+
+	acquire(): Promise<() => void> {
+		const ticket = new Promise<(() => void)>(resolve => this.queue.push(resolve));
+		if (!this.pending) this.dispatchNext();
+		return ticket;
+	}
+
+	private dispatchNext(): void {
+		if (this.queue.length > 0) {
+			this.pending = true;
+			this.queue.shift()!(this.dispatchNext.bind(this));
+		} else {
+			this.pending = false;
 		}
 	}
 }
