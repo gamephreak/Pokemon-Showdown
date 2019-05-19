@@ -14,9 +14,9 @@
 'use strict';
 
 /** @type {typeof import('../sim/battle-stream').BattleStream} */
-const BattleStream = require(/** @type {any} */ ('../.sim-dist/battle-stream')).BattleStream;
+const BattleStream = require(/** @type {any} */ ('../.dist/sim/battle-stream')).BattleStream;
 /** @type {typeof import('../lib/fs').FS} */
-const FS = require(/** @type {any} */('../.lib-dist/fs')).FS;
+const FS = require(/** @type {any} */('../.dist/lib/fs')).FS;
 /** @type {typeof import('./room-game')} */
 const RoomGames = require(/** @type {any} */ ('./room-game'));
 
@@ -1148,7 +1148,7 @@ exports.RoomBattleStream = RoomBattleStream;
  *********************************************************/
 
 /** @type {typeof import('../lib/process-manager').StreamProcessManager} */
-const StreamProcessManager = require(/** @type {any} */('../.lib-dist/process-manager')).StreamProcessManager;
+const StreamProcessManager = require(/** @type {any} */('../.dist/lib/process-manager')).StreamProcessManager;
 
 const PM = new StreamProcessManager(module, () => {
 	return new RoomBattleStream();
@@ -1194,7 +1194,7 @@ if (!PM.isParentProcess) {
 	}
 
 	/** @type {typeof import('../lib/repl').Repl} */
-	const Repl = require(/** @type {any} */('../.lib-dist/repl')).Repl;
+	const Repl = require(/** @type {any} */('../.dist/lib/repl')).Repl;
 	Repl.start(`sim-${process.pid}`, cmd => eval(cmd));
 } else {
 	PM.spawn(global.Config ? Config.simulatorprocesses : 1);

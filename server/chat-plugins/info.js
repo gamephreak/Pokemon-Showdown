@@ -1758,7 +1758,7 @@ const commands = {
 			buf += `<strong>${worker.pid || worker.process.pid}</strong> - Sockets ${worker.id}<br />`;
 		}
 		/** @type {typeof import('../../lib/process-manager').processManagers} */
-		const processManagers = require(/** @type {any} */('../../.lib-dist/process-manager')).processManagers;
+		const processManagers = require(/** @type {any} */('../../.dist/lib/process-manager')).processManagers;
 		for (const manager of processManagers) {
 			for (const [i, process] of manager.processes.entries()) {
 				buf += `<strong>${process.process.pid}</strong> - ${manager.basename} ${i} (load ${process.load})<br />`;

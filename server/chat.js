@@ -56,7 +56,7 @@ const BROADCAST_TOKEN = '!';
 const TRANSLATION_DIRECTORY = 'translations/';
 
 /** @type {typeof import('../lib/fs').FS} */
-const FS = require(/** @type {any} */('../.lib-dist/fs')).FS;
+const FS = require(/** @type {any} */('../.dist/lib/fs')).FS;
 
 /** @type {(url: string) => Promise<{width: number, height: number}>} */
 // @ts-ignore ignoring until there is a ts typedef available for this module.
@@ -1896,9 +1896,9 @@ Chat.stringify = function (value, depth = 0) {
 };
 
 /** @type {typeof import('./chat-formatter').formatText} */
-Chat.formatText = require(/** @type {any} */('../.server-dist/chat-formatter')).formatText;
+Chat.formatText = require(/** @type {any} */('../.dist/server/chat-formatter')).formatText;
 /** @type {typeof import('./chat-formatter').linkRegex} */
-Chat.linkRegex = require(/** @type {any} */('../.server-dist/chat-formatter')).linkRegex;
+Chat.linkRegex = require(/** @type {any} */('../.dist/server/chat-formatter')).linkRegex;
 Chat.updateServerLock = false;
 
 /**

@@ -18,12 +18,12 @@ const MINUTES = 60 * 1000;
 const cluster = require('cluster');
 const fs = require('fs');
 /** @type {typeof import('../lib/fs').FS} */
-const FS = require(/** @type {any} */('../.lib-dist/fs')).FS;
+const FS = require(/** @type {any} */('../.dist/lib/fs')).FS;
 
 /** @typedef {0 | 1 | 2 | 3 | 4} ChannelID */
 
 /** @type {typeof import('../lib/crashlogger').crashlogger} */
-let crashlogger = require(/** @type {any} */('../.lib-dist/crashlogger')).crashlogger;
+let crashlogger = require(/** @type {any} */('../.dist/lib/crashlogger')).crashlogger;
 
 const Monitor = {
 	crashlog: crashlogger,
@@ -287,7 +287,7 @@ if (cluster.isMaster) {
 	// It's optional if you don't need these features.
 
 	/** @type {typeof import('./ip-tools').IPTools} */
-	global.IPTools = require(/** @type {any} */('../.server-dist/ip-tools')).IPTools;
+	global.IPTools = require(/** @type {any} */('../.dist/server/ip-tools')).IPTools;
 
 	if (Config.crashguard) {
 		// graceful crash
@@ -726,6 +726,6 @@ if (cluster.isMaster) {
 	console.log(`Test your server at http://${Config.bindaddress === '0.0.0.0' ? 'localhost' : Config.bindaddress}:${Config.port}`);
 
 	/** @type {typeof import('../lib/repl').Repl} */
-	const Repl = require(/** @type {any} */('../.lib-dist/repl')).Repl;
+	const Repl = require(/** @type {any} */('../.dist/lib/repl')).Repl;
 	Repl.start(`sockets-${cluster.worker.id}-${process.pid}`, cmd => eval(cmd));
 }

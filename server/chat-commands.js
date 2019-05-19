@@ -18,7 +18,7 @@
 /* eslint no-else-return: "error" */
 
 const crypto = require('crypto');
-const FS = require('../.lib-dist/fs').FS;
+const FS = require('../.dist/lib/fs').FS;
 
 const MAX_REASON_LENGTH = 300;
 const MUTE_LENGTH = 7 * 60 * 1000;
@@ -3013,7 +3013,7 @@ const commands = {
 
 				Chat.destroy();
 
-				const processManagers = require('../.lib-dist/process-manager').processManagers;
+				const processManagers = require('../.dist/lib/process-manager').processManagers;
 				for (let manager of processManagers.slice()) {
 					if (manager.filename.startsWith(FS('server/chat-plugins').path)) {
 						manager.destroy();
@@ -3044,12 +3044,12 @@ const commands = {
 				if (lock['battles']) return this.errorReply(`Hot-patching battles has been disabled by ${lock['battles'].by} (${lock['battles'].reason})`);
 				if (lock['validator']) return this.errorReply(`Hot-patching the validator has been disabled by ${lock['validator'].by} (${lock['validator'].reason})`);
 
-				// uncache the .sim-dist/dex.js dependency tree
-				Chat.uncacheDir('./.sim-dist');
+				// uncache the .dist/sim/dex.js dependency tree
+				Chat.uncacheDir('./.dist/sim');
 				Chat.uncacheDir('./data');
 				Chat.uncache('./config/formats');
-				// reload .sim-dist/dex.js
-				global.Dex = require('../.sim-dist/dex').Dex;
+				// reload .dist/sim/dex.js
+				global.Dex = require('../.dist/sim/dex').Dex;
 				// rebuild the formats list
 				delete Rooms.global.formatList;
 				// respawn validator processes
@@ -3062,8 +3062,8 @@ const commands = {
 				this.sendReply("Formats have been hot-patched.");
 			} else if (target === 'loginserver') {
 				FS('config/custom.css').unwatch();
-				Chat.uncache('./.server-dist/loginserver');
-				global.LoginServer = require('../.server-dist/loginserver').LoginServer;
+				Chat.uncache('./.dist/server/loginserver');
+				global.LoginServer = require('../.dist/server/loginserver').LoginServer;
 				this.sendReply("The login server has been hot-patched. New login server requests will use the new code.");
 			} else if (target === 'learnsets' || target === 'validator') {
 				if (lock['validator']) return this.errorReply(`Hot-patching the validator has been disabled by ${lock['validator'].by} (${lock['validator'].reason})`);
@@ -3098,7 +3098,7 @@ const commands = {
 		`You can disable various hot-patches with /nohotpatch. For more information on this, see /help nohotpatch`,
 		`/hotpatch chat - reload chat-commands.js and the chat-plugins`,
 		`/hotpatch validator - spawn new team validator processes`,
-		`/hotpatch formats - reload the .sim-dist/dex.js tree, rebuild and rebroad the formats list, and spawn new simulator and team validator processes`,
+		`/hotpatch formats - reload the .dist/sim/dex.js tree, rebuild and rebroad the formats list, and spawn new simulator and team validator processes`,
 		`/hotpatch dnsbl - reloads IPTools datacenters`,
 		`/hotpatch punishments - reloads new punishments code`,
 		`/hotpatch loginserver - reloads new loginserver code`,

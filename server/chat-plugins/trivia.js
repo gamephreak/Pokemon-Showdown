@@ -6,7 +6,7 @@
 'use strict';
 
 /** @type {typeof import('../../lib/fs').FS} */
-const FS = require(/** @type {any} */('../../.lib-dist/fs')).FS;
+const FS = require(/** @type {any} */('../../.dist/lib/fs')).FS;
 
 const MAIN_CATEGORIES = {
 	ae: 'Arts and Entertainment',

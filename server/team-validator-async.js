@@ -10,7 +10,7 @@
 'use strict';
 
 /** @type {typeof import('../lib/crashlogger').crashlogger} */
-let crashlogger = require(/** @type {any} */('../.lib-dist/crashlogger')).crashlogger;
+let crashlogger = require(/** @type {any} */('../.dist/lib/crashlogger')).crashlogger;
 
 class ValidatorAsync {
 	/**
@@ -36,7 +36,7 @@ class ValidatorAsync {
  *********************************************************/
 
 /** @type {typeof import('../lib/process-manager').QueryProcessManager} */
-const QueryProcessManager = require(/** @type {any} */('../.lib-dist/process-manager')).QueryProcessManager;
+const QueryProcessManager = require(/** @type {any} */('../.dist/lib/process-manager')).QueryProcessManager;
 
 /** @type {QueryProcessManager} */
 // @ts-ignore
@@ -69,7 +69,7 @@ if (!PM.isParentProcess) {
 	// @ts-ignore This file doesn't exist on the repository, so Travis checks fail if this isn't ignored
 	global.Config = require('../config/config');
 
-	global.TeamValidator = require(/** @type {any} */ ('../.sim-dist/team-validator')).TeamValidator;
+	global.TeamValidator = require(/** @type {any} */ ('../.dist/sim/team-validator')).TeamValidator;
 	// @ts-ignore ???
 	global.Monitor = {
 		/**
@@ -95,12 +95,12 @@ if (!PM.isParentProcess) {
 		});
 	}
 
-	global.Dex = require(/** @type {any} */ ('../.sim-dist/dex')).Dex.includeData();
+	global.Dex = require(/** @type {any} */ ('../.dist/sim/dex')).Dex.includeData();
 	global.toID = Dex.getId;
 	global.Chat = require('./chat');
 
 	/** @type {typeof import('../lib/repl').Repl} */
-	const Repl = require(/** @type {any} */('../.lib-dist/repl')).Repl;
+	const Repl = require(/** @type {any} */('../.dist/lib/repl')).Repl;
 	Repl.start(`team-validator-${process.pid}`, cmd => eval(cmd));
 } else {
 	PM.spawn(global.Config ? Config.validatorprocesses : 1);

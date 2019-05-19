@@ -1,7 +1,7 @@
 'use strict';
 
 /** @type {typeof import('../../lib/fs').FS} */
-const FS = require(/** @type {any} */('../../.lib-dist/fs')).FS;
+const FS = require(/** @type {any} */('../../.dist/lib/fs')).FS;
 
 const MONITOR_FILE = 'config/chat-plugins/chat-monitor.tsv';
 const WRITE_THROTTLE_TIME = 5 * 60 * 1000;

@@ -1,8 +1,8 @@
 'use strict';
 
 const assert = require('assert');
-const Dex = require('./../.sim-dist/dex').Dex;
-const Sim = require('./../.sim-dist');
+const Dex = require('./../.dist/sim/dex').Dex;
+const Sim = require('./../.dist/sim');
 
 const cache = new Map();
 

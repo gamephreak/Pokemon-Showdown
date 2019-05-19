@@ -9,7 +9,7 @@
  * @license MIT
  */
 
-import * as Streams from './../lib/streams';
+import * as Streams from '../lib/streams';
 import {Battle} from './battle';
 
 /**

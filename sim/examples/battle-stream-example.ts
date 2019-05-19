@@ -3,7 +3,7 @@
  * Pokemon Showdown - http://pokemonshowdown.com/
  *
  * Example of how to create AIs battling against each other.
- * Run this using `node build && node .sim-dist/examples/battle-stream-example`.
+ * Run this using `node build && node .dist/sim/examples/battle-stream-example`.
  *
  * @license MIT
  * @author Guangcong Luo <guangcongluo@gmail.com>

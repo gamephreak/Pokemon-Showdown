@@ -23,7 +23,7 @@ const LAST_BATTLE_WRITE_THROTTLE = 10;
 const RETRY_AFTER_LOGIN = null;
 
 /** @type {typeof import('../lib/fs').FS} */
-const FS = require(/** @type {any} */('../.lib-dist/fs')).FS;
+const FS = require(/** @type {any} */('../.dist/lib/fs')).FS;
 const Roomlogs = require('./roomlogs');
 
 /*********************************************************
@@ -487,7 +487,7 @@ class GlobalRoom extends BasicRoom {
 			// Prevent there from being two possible hidden classes an instance
 			// of GlobalRoom can have.
 			// @ts-ignore
-			this.ladderIpLog = new (require(/** @type {any} */('../.lib-dist/streams'))).WriteStream({write() {}});
+			this.ladderIpLog = new (require(/** @type {any} */('../.dist/lib/streams'))).WriteStream({write() {}});
 		}
 
 		let lastBattle;

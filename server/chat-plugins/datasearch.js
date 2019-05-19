@@ -1656,7 +1656,7 @@ function runSearch(query) {
  * Process manager
  *********************************************************/
 
-const QueryProcessManager = require('../../.lib-dist/process-manager').QueryProcessManager;
+const QueryProcessManager = require('../../.dist/lib/process-manager').QueryProcessManager;
 
 const PM = new QueryProcessManager(module, async query => {
 	try {
@@ -1702,12 +1702,12 @@ if (!PM.isParentProcess) {
 		});
 	}
 
-	global.Dex = require('../../.sim-dist/dex').Dex;
+	global.Dex = require('../../.dist/sim/dex').Dex;
 	global.toID = Dex.getId;
 	Dex.includeData();
-	global.TeamValidator = require('../../.sim-dist/team-validator').TeamValidator;
+	global.TeamValidator = require('../../.dist/sim/team-validator').TeamValidator;
 
-	require('../../.lib-dist/repl').Repl.start('dexsearch', cmd => eval(cmd));
+	require('../../.dist/lib/repl').Repl.start('dexsearch', cmd => eval(cmd));
 } else {
 	PM.spawn(MAX_PROCESSES);
 }

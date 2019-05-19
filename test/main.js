@@ -27,7 +27,7 @@ before('initialization', function () {
 	} finally {
 		config = require('../config/config');
 	}
-	require('./../.lib-dist/process-manager').disabled = true;
+	require('./../.dist/lib/process-manager').disabled = true;
 
 	Object.assign(config, require('../config/config-example'));
 	// Actually crash if we crash
@@ -40,7 +40,7 @@ before('initialization', function () {
 	config.fakeladder = false;
 
 	// Don't create a REPL
-	require('../.lib-dist/repl').Repl.start = noop;
+	require('../.dist/lib/repl').Repl.start = noop;
 
 	// Start the server.
 	require('../server');

@@ -20,7 +20,7 @@
  *   rooms.js. There's also a global room which every user is in, and
  *   handles miscellaneous things like welcoming the user.
  *
- * Dex - from .sim-dist/dex.js
+ * Dex - from .dist/sim/dex.js
  *
  *   Handles getting data about Pokemon, items, etc.
  *
@@ -55,12 +55,12 @@ try {
 	throw new Error("We require Node.js version 10 or later; you're using " + process.version);
 }
 try {
-	require.resolve('../.sim-dist/index');
+	require.resolve('../.dist/sim/index');
 } catch (e) {
 	throw new Error("Dependencies are unmet; run `node build` before launching Pokemon Showdown again.");
 }
 
-const FS = require('../.lib-dist/fs').FS;
+const FS = require('../.dist/lib/fs').FS;
 
 /*********************************************************
  * Load configuration
@@ -88,10 +88,10 @@ if (Config.watchconfig) {
  * Set up most of our globals
  *********************************************************/
 
-global.Dex = require('../.sim-dist/dex').Dex;
+global.Dex = require('../.dist/sim/dex').Dex;
 global.toID = Dex.getId;
 
-global.LoginServer = require('../.server-dist/loginserver').LoginServer;
+global.LoginServer = require('../.dist/server/loginserver').LoginServer;
 
 global.Ladders = require('./ladders');
 
@@ -103,12 +103,12 @@ global.Punishments = require('./punishments');
 
 global.Rooms = require('./rooms');
 
-global.Verifier = require('../.server-dist/verifier');
+global.Verifier = require('../.dist/server/verifier');
 Verifier.PM.spawn();
 
 global.Tournaments = require('./tournaments');
 
-global.IPTools = require('../.server-dist/ip-tools').IPTools;
+global.IPTools = require('../.dist/server/ip-tools').IPTools;
 IPTools.loadDatacenters();
 
 if (Config.crashguard) {
@@ -151,4 +151,4 @@ TeamValidatorAsync.PM.spawn();
  * Start up the REPL server
  *********************************************************/
 
-require('../.lib-dist/repl').Repl.start('app', cmd => eval(cmd));
+require('../.dist/lib/repl').Repl.start('app', cmd => eval(cmd));

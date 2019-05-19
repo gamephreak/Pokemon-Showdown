@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('./../../assert');
-const TeamValidator = require('./../../../.sim-dist/team-validator').TeamValidator;
+const TeamValidator = require('./../../../.dist/sim/team-validator').TeamValidator;
 
 const TOTAL_TEAMS = 10;
 const ALL_GENS = [1, 2, 3, 4, 5, 6, 7];

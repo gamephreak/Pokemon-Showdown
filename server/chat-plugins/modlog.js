@@ -15,9 +15,9 @@
 
 'use strict';
 
-const FS = require('../../.lib-dist/fs').FS;
+const FS = require('../../.dist/lib/fs').FS;
 const path = require('path');
-const Dashycode = require('../../.lib-dist/dashycode');
+const Dashycode = require('../../.dist/lib/dashycode');
 const util = require('util');
 const execFile = util.promisify(require('child_process').execFile);
 
@@ -559,7 +559,7 @@ exports.commands = {
  * Process manager
  *********************************************************/
 
-const QueryProcessManager = require('../../.lib-dist/process-manager').QueryProcessManager;
+const QueryProcessManager = require('../../.dist/lib/process-manager').QueryProcessManager;
 
 const PM = new QueryProcessManager(module, async data => {
 	switch (data.cmd) {
@@ -615,10 +615,10 @@ if (!PM.isParentProcess) {
 			Monitor.crashlog(err, 'A modlog child process');
 		}
 	});
-	global.Dex = require('../../.sim-dist/dex').Dex;
+	global.Dex = require('../../.dist/sim/dex').Dex;
 	global.toID = Dex.getId;
 
-	require('../../.lib-dist/repl').Repl.start('modlog', cmd => eval(cmd));
+	require('../../.dist/lib/repl').Repl.start('modlog', cmd => eval(cmd));
 } else {
 	PM.spawn(MAX_PROCESSES);
 }

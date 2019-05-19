@@ -9,7 +9,7 @@
 'use strict';
 
 /** @type {typeof import('../lib/fs').FS} */
-const FS = require(/** @type {any} */('../.lib-dist/fs')).FS;
+const FS = require(/** @type {any} */('../.dist/lib/fs')).FS;
 
 const MONITOR_CLEAN_TIMEOUT = 2 * 60 * 60 * 1000;
 
@@ -56,7 +56,7 @@ if (('Config' in global) &&
 }
 
 /** @type {typeof import('../lib/crashlogger').crashlogger} */
-let crashlogger = require(/** @type {any} */('../.lib-dist/crashlogger')).crashlogger;
+let crashlogger = require(/** @type {any} */('../.dist/lib/crashlogger')).crashlogger;
 
 const Monitor = module.exports = {
 	/*********************************************************

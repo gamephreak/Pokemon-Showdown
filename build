@@ -55,15 +55,13 @@ try {
 	shell('npm install --production');
 }
 
-sucrase('./sim', './.sim-dist');
-sucrase('./lib', './.lib-dist');
-sucrase('./server', './.server-dist');
+sucrase('./sim', './.dist/sim');
+sucrase('./lib', './.dist/lib');
+sucrase('./server', './.dist/server');
 // NOTE: replace is asynchronous - add additional replacements for the same path in one call instead of making multiple calls.
-replace(path.join(__dirname, '.sim-dist'), [
-	{regex: new RegExp(`(require\\\(.*?)(lib)(.*?\\\))`, 'g'), replace: `$1.lib-dist$3`},
-]);
-replace(path.join(__dirname, '.server-dist'), [
-	{regex: new RegExp(`(require\\\(.*?)(lib)(.*?\\\))`, 'g'), replace: `$1.lib-dist$3`},
+replace(path.join(__dirname, '.dist'), [
+	{regex: new RegExp(`(require\\\(.*?)(\.\.\/lib)(.*?\\\))`, 'g'), replace: `$1../.dist/lib$3`},
+	{regex: new RegExp(`((?:require\\\(|path.resolve\\\(__dirname, )('|")\.\.\/)(.*?\\\))`, 'g'), replace: `$1../$3`},
 ]);
 
 // Make sure config.js exists. If not, copy it over synchronously from

@@ -1,7 +1,7 @@
 'use strict';
 
 /** @type {typeof import('../../lib/fs').FS} */
-const FS = require(/** @type {any} */('../../.lib-dist/fs')).FS;
+const FS = require(/** @type {any} */('../../.dist/lib/fs')).FS;
 
 const DISHES_FILE = 'config/chat-plugins/thecafe-foodfight.json';
 const FOODFIGHT_COOLDOWN = 5 * 60 * 1000;

@@ -10,7 +10,7 @@
 
 'use strict';
 
-const FS = require('../../.lib-dist/fs').FS;
+const FS = require('../../.dist/lib/fs').FS;
 
 const RATED_TYPES = ['official', 'regular', 'mini'];
 const DEFAULT_POINTS = {
