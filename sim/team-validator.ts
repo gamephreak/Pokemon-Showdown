@@ -9,6 +9,29 @@
 
 import {Dex} from './dex';
 
+export enum InvalidationReason {
+		UNKNOWN,
+		BAD_DATA,
+		NOT_ENOUGH_POKEMON,
+		TOO_MANY_POKEMON,
+		COMPLEX_TEAM_BAN,
+		WRONG_GENDER,
+		DOES_NOT_EXIST,
+		INVALID_HAPPINESS,
+		INVALID_HIDDEN_POWER,
+		BAN,
+		MEGA_BAN,
+		UNRELEASED,
+		TIER,
+		INVALID_MOVE,
+}
+
+export type Invalidation {
+	reason: InvalidationReason;
+	message: string;
+	context?: any;
+}
+
 export class TeamValidator {
 	readonly format: Format;
 	readonly dex: ModdedDex;
@@ -40,15 +63,27 @@ export class TeamValidator {
 			if (format.canUseRandomTeam) {
 				return null;
 			}
-			return [`You sent invalid team data. If you're not using a custom client, please report this as a bug.`];
+			return [{reason: InvalidationReason.BAD_DATA, message: `You sent invalid team data. If you're not using a custom client, please report this as a bug.`}];
 		}
 
 		let lengthRange = format.teamLength && format.teamLength.validate;
 		if (!lengthRange) lengthRange = [1, 6];
 		if (format.gameType === 'doubles' && lengthRange[0] < 2) lengthRange[0] = 2;
 		if ((format.gameType === 'triples' || format.gameType === 'rotation') && lengthRange[0] < 3) lengthRange[0] = 3;
-		if (team.length < lengthRange[0]) problems.push(`You must bring at least ${lengthRange[0]} Pok\u00E9mon.`);
-		if (team.length > lengthRange[1]) return [`You may only bring up to ${lengthRange[1]} Pok\u00E9mon.`];
+		if (team.length < lengthRange[0]) {
+			problems.push({
+				reason: InvalidationReason.NOT_ENOUGH_POKEMON,
+				context: lengthRange[0],
+				message: `You must bring at least ${lengthRange[0]} Pok\u00E9mon.`,
+			});
+		}
+		if (team.length > lengthRange[1]) {
+			return [{
+				reason: InvalidationReason.TOO_MANY_POKEMON,
+				context: lengthRange[1],
+				message: `You may only bring up to ${lengthRange[1]} Pok\u00E9mon.`,
+			}];
+		}
 
 		// A limit is imposed here to prevent too much engine strain or
 		// too much layout deformation - to be exact, this is the limit
@@ -56,13 +91,20 @@ export class TeamValidator {
 		// The usual limit of 6 pokemon is handled elsewhere - currently
 		// in the cartridge-compliant set validator: rulesets.js:pokemon
 		if (team.length > 24) {
-			problems.push(`Your team has more than than 24 Pok\u00E9mon, which the simulator can't handle.`);
+			problems.push({
+				reason: InvalidationReason.TOO_MANY_POKEMON,
+				context: 24,
+				message: `Your team has more than than 24 Pok\u00E9mon, which the simulator can't handle.`,
+			});
 			return problems;
 		}
 
 		const teamHas: {[k: string]: number} = {};
 		for (const set of team) {
-			if (!set) return [`You sent invalid team data. If you're not using a custom client, please report this as a bug.`];
+			if (!set) return [{
+				reason: InvalidationReason.BAD_DATA,
+				message: `You sent invalid team data. If you're not using a custom client, please report this as a bug.`,
+			}];
 			const setProblems = (format.validateSet || this.validateSet).call(this, set, teamHas);
 			if (setProblems) {
 				problems = problems.concat(setProblems);
@@ -79,10 +121,18 @@ export class TeamValidator {
 			}
 			if (limit && count > limit) {
 				const clause = source ? ` by ${source}` : ``;
-				problems.push(`You are limited to ${limit} of ${rule}${clause}.`);
+				problems.push({
+					reason: InvadationReason.COMPLEX_TEAM_BAN,
+					context: rule,
+					message: `You are limited to ${limit} of ${rule}${clause}.`,
+				});
 			} else if (!limit && count >= bans.length) {
 				const clause = source ? ` by ${source}` : ``;
-				problems.push(`Your team has the combination of ${rule}, which is banned${clause}.`);
+				problems.push({
+					reason: InvadationReason.COMPLEX_TEAM_BAN,
+					context: rule,
+					message: `Your team has the combination of ${rule}, which is banned${clause}.`,
+				});
 			}
 		}
 
@@ -106,7 +156,7 @@ export class TeamValidator {
 
 		let problems: string[] = [];
 		if (!set) {
-			return [`This is not a Pokemon.`];
+			return [{reason: InvalidationReason.BAD_DATA, message: `This is not a Pokemon.`}];
 		}
 
 		let template = dex.getTemplate(set.species);
@@ -170,7 +220,11 @@ export class TeamValidator {
 		if (ability.id === 'battlebond' && template.id === 'greninja' && !ruleTable.has('ignoreillegalabilities')) {
 			template = dex.getTemplate('greninjaash');
 			if (set.gender && set.gender !== 'M') {
-				problems.push(`Battle Bond Greninja must be male.`);
+				problems.push({
+					reason: InvalidationReason.WRONG_GENDER,
+					context: 'M',
+					message: `Battle Bond Greninja must be male.`
+				});
 			}
 			set.gender = 'M';
 		}
@@ -178,11 +232,19 @@ export class TeamValidator {
 			template = dex.getTemplate('rockruffdusk');
 		}
 		if (!template.exists) {
-			return [`The Pokemon "${set.species}" does not exist.`];
+			return [{
+				reason: InvalidationReason.DOES_NOT_EXIST,
+				context: `pokemon: ${set.species}`,
+				message: `The Pokemon "${set.species}" does not exist.`,
+			}];
 		}
 
 		if (item.id && !item.exists) {
-			return [`"${set.item}" is an invalid item.`];
+			return [{
+				reason: InvalidationReason.DOES_NOT_EXIST,
+				context: `item: ${set.item}`,
+				message: `"${set.item}" is an invalid item.`,
+			}];
 		}
 		if (ability.id && !ability.exists) {
 			if (dex.gen < 3) {
@@ -190,7 +252,11 @@ export class TeamValidator {
 				ability = dex.getAbility('');
 				set.ability = '';
 			} else {
-				return [`"${set.ability}" is an invalid ability.`];
+				return [{
+					reason: InvalidationReason.DOES_NOT_EXIST,
+					context: `ability: ${set.ability}`,
+					message: `"${set.ability}" is an invalid ability.`,
+				}];
 			}
 		}
 		if (set.nature && !dex.getNature(set.nature).exists) {
@@ -198,14 +264,24 @@ export class TeamValidator {
 				// gen 1-2 don't have natures, just remove them
 				set.nature = '';
 			} else {
-				problems.push(`${name}'s nature is invalid.`);
+				problems.push({
+					reason: InvalidationReason.DOES_NOT_EXIST,
+					context: `nature: ${set.nature}`,
+					message: `${name}'s nature is invalid.`
+				});
 			}
 		}
 		if (set.happiness !== undefined && isNaN(set.happiness)) {
-			problems.push(`${name} has an invalid happiness.`);
+			problems.push({
+				reason: InvalidationReason.INVALID_HAPPINESS,
+				message: `${name} has an invalid happiness.`,
+			});
 		}
 		if (set.hpType && (!dex.getType(set.hpType).exists || ['normal', 'fairy'].includes(toID(set.hpType)))) {
-			problems.push(`${name}'s Hidden Power type (${set.hpType}) is invalid.`);
+			problems.push({
+				reason: InvalidationReason.INVALID_HIDDEN_POWER,
+				message: `${name}'s Hidden Power type (${set.hpType}) is invalid.`,
+			});
 		}
 
 		let banReason = ruleTable.check('pokemon:' + template.id, setHas);
@@ -214,7 +290,11 @@ export class TeamValidator {
 			banReason = banReason || ruleTable.check('basepokemon:' + toID(template.baseSpecies), setHas);
 		}
 		if (banReason) {
-			return [`${set.species} is ${banReason}.`];
+			return [{
+				reason: InvalidationReason.BAN,
+				context: `pokemon: ${set.species}`,
+				message: `${set.species} is ${banReason}.`,
+			}];
 		}
 		templateOverride = templateOverride || ruleTable.has('+basepokemon:' + toID(template.baseSpecies));
 		let postMegaTemplate = template;
@@ -226,25 +306,47 @@ export class TeamValidator {
 			templateOverride = ruleTable.has('+pokemon:' + postMegaTemplate.id);
 			banReason = ruleTable.check('pokemon:' + postMegaTemplate.id, setHas);
 			if (banReason) {
-				problems.push(`${postMegaTemplate.species} is ${banReason}.`);
+				problems.push({
+					reason: InvalidationReason.BAN,
+					context: `pokemon: ${postMegaTemplate.species}`,
+					message: `${postMegaTemplate.species} is ${banReason}.`,
+				});
 			} else if (!templateOverride) {
 				banReason = ruleTable.check('pokemontag:mega', setHas);
-				if (banReason) problems.push(`Mega evolutions are ${banReason}.`);
+				if (banReason) {
+					problems.push(
+					problems.push({
+						reason: InvalidationReason.MEGA_BAN,
+						message: `Mega evolutions are ${banReason}.`),
+					});
+				}
 			}
 		}
 		if (!templateOverride) {
 			if (ruleTable.has('-unreleased') && postMegaTemplate.isUnreleased) {
-				problems.push(`${name} (${postMegaTemplate.species}) is unreleased.`);
+				problems.push({
+					reason: InvalidationReason.UNRELEASED,
+					context: `pokemon: ${postMegaTemplate.species}`,
+					message: `${name} (${postMegaTemplate.species}) is unreleased.`,
+				});
 			} else if (postMegaTemplate.tier) {
 				let tag = postMegaTemplate.tier === '(PU)' ? 'ZU' : postMegaTemplate.tier;
 				banReason = ruleTable.check('pokemontag:' + toID(tag), setHas);
 				if (banReason) {
-					problems.push(`${postMegaTemplate.species} is in ${tag}, which is ${banReason}.`);
+					problems.push({
+						reason: InvalidationReason.TIER,
+						context: `pokemon: ${postMegaTemplate.species}`,
+						message: `${postMegaTemplate.species} is in ${tag}, which is ${banReason}.`,
+					});
 				} else if (postMegaTemplate.doublesTier) {
 					tag = postMegaTemplate.doublesTier === '(DUU)' ? 'DNU' : postMegaTemplate.doublesTier;
 					banReason = ruleTable.check('pokemontag:' + toID(tag), setHas);
 					if (banReason) {
-						problems.push(`${postMegaTemplate.species} is in ${tag}, which is ${banReason}.`);
+						problems.push({
+							reason: InvalidationReason.TIER,
+							context: `pokemon: ${postMegaTemplate.species}`,
+							message: `${postMegaTemplate.species} is in ${tag}, which is ${banReason}.`
+						});
 					}
 				}
 			}
@@ -252,14 +354,26 @@ export class TeamValidator {
 
 		banReason = ruleTable.check('ability:' + toID(set.ability), setHas);
 		if (banReason) {
-			problems.push(`${name}'s ability ${set.ability} is ${banReason}.`);
+			problems.push({
+				reason: InvalidationReason.BAN,
+				context: `ability: ${set.ability}`,
+				message: `${name}'s ability ${set.ability} is ${banReason}.`,
+			});
 		}
 		banReason = ruleTable.check('item:' + toID(set.item), setHas);
 		if (banReason) {
-			problems.push(`${name}'s item ${set.item} is ${banReason}.`);
+			problems.push({
+				reason: InvalidationReason.BAN,
+				context: `item: ${set.item}`,
+				message: `${name}'s item ${set.item} is ${banReason}.`,
+			});
 		}
 		if (ruleTable.has('-unreleased') && item.isUnreleased && !ruleTable.has('+item:' + item.id)) {
-			problems.push(`${name}'s item ${set.item} is unreleased.`);
+			problems.push({
+				reason: InvalidationReason.UNRELEASED,
+				context: `item: ${set.item}`,
+				message: `${name}'s item ${set.item} is unreleased.`,
+			});
 		}
 
 		if (!set.ability) set.ability = 'No Ability';
@@ -270,22 +384,22 @@ export class TeamValidator {
 				set.ability = 'No Ability';
 			} else if (!ruleTable.has('ignoreillegalabilities')) {
 				if (!ability.name) {
-					problems.push(`${name} needs to have an ability.`);
+					problems.push(`${name} needs to have an ability.`); // FIXME 1
 				} else if (!Object.values(template.abilities).includes(ability.name)) {
-					problems.push(`${name} can't have ${set.ability}.`);
+					problems.push(`${name} can't have ${set.ability}.`); // FIXME 2
 				}
 				if (ability.name === template.abilities['H']) {
 					isHidden = true;
 
 					if (template.unreleasedHidden && ruleTable.has('-unreleased')) {
-						problems.push(`${name}'s Hidden Ability is unreleased.`);
+						problems.push(`${name}'s Hidden Ability is unreleased.`); // FIXME 3
 					} else if (['entei', 'suicune', 'raikou'].includes(template.id) && format.requirePlus) {
-						problems.push(`${name}'s Hidden Ability is only available from Virtual Console, which is not allowed in this format.`);
+						problems.push(`${name}'s Hidden Ability is only available from Virtual Console, which is not allowed in this format.`); // FIXME 4
 					} else if (dex.gen === 6 && ability.name === 'Symbiosis' &&
 						(set.species.endsWith('Orange') || set.species.endsWith('White'))) {
-						problems.push(`${name}'s Hidden Ability is unreleased for the Orange and White forms.`);
+						problems.push(`${name}'s Hidden Ability is unreleased for the Orange and White forms.`); // FIXME 5
 					} else if (dex.gen === 5 && set.level < 10 && (template.maleOnlyHidden || template.gender === 'N')) {
-						problems.push(`${name} must be at least level 10 with its Hidden Ability.`);
+						problems.push(`${name} must be at least level 10 with its Hidden Ability.`); // FIXME 6
 					}
 					if (template.maleOnlyHidden) {
 						set.gender = 'M';
@@ -298,7 +412,7 @@ export class TeamValidator {
 			set.moves = set.moves.filter(val => val);
 		}
 		if (!set.moves || !set.moves.length) {
-			problems.push(`${name} has no moves.`);
+			problems.push(`${name} has no moves.`); // FIXME 7
 			set.moves = [];
 		}
 		// A limit is imposed here to prevent too much engine strain or
@@ -307,7 +421,7 @@ export class TeamValidator {
 		// The usual limit of 4 moves is handled elsewhere - currently
 		// in the cartridge-compliant set validator: rulesets.js:pokemon
 		if (set.moves.length > 24) {
-			problems.push(`${name} has more than 24 moves, which the simulator can't handle.`);
+			problems.push(`${name} has more than 24 moves, which the simulator can't handle.`); // FIXME 8
 			return problems;
 		}
 
@@ -319,10 +433,10 @@ export class TeamValidator {
 		for (const moveName of set.moves) {
 			if (!moveName) continue;
 			const move = dex.getMove(Dex.getString(moveName));
-			if (!move.exists) return [`"${move.name}" is an invalid move.`];
+			if (!move.exists) return [`"${move.name}" is an invalid move.`]; // FIXME 9
 			banReason = ruleTable.check('move:' + move.id, setHas);
 			if (banReason) {
-				problems.push(`${name}'s move ${move.name} is ${banReason}.`);
+				problems.push(`${name}'s move ${move.name} is ${banReason}.`);  // FIXME 10
 			}
 
 			// Note that we don't error out on multiple Hidden Power types
@@ -333,7 +447,7 @@ export class TeamValidator {
 
 			if (ruleTable.has('-unreleased')) {
 				if (move.isUnreleased && !ruleTable.has('+move:' + move.id)) {
-					problems.push(`${name}'s move ${move.name} is unreleased.`);
+					problems.push(`${name}'s move ${move.name} is unreleased.`); // FIXME 11
 				}
 			}
 
@@ -365,12 +479,12 @@ export class TeamValidator {
 			if (template.gen >= 6 && template.eggGroups[0] === 'Undiscovered' && !template.nfe &&
 				(template.baseSpecies !== 'Diancie' || !set.shiny)) {
 				// Legendary Pokemon must have at least 3 perfect IVs in gen 6+
-				problems.push(`${name} must not have Hidden Power Fighting because it starts with 3 perfect IVs because it's a gen 6+ legendary.`);
+				problems.push(`${name} must not have Hidden Power Fighting because it starts with 3 perfect IVs because it's a gen 6+ legendary.`); // FIXME 12
 			}
 		}
 		const ivHpType = dex.getHiddenPower(set.ivs).type;
 		if (!canBottleCap && ruleTable.has('pokemon') && set.hpType && set.hpType !== ivHpType) {
-			problems.push(`${name} has Hidden Power ${set.hpType}, but its IVs are for Hidden Power ${ivHpType}.`);
+			problems.push(`${name} has Hidden Power ${set.hpType}, but its IVs are for Hidden Power ${ivHpType}.`); // FIXME 13
 		}
 		if (dex.gen <= 2) {
 			// validate DVs
@@ -382,11 +496,11 @@ export class TeamValidator {
 			if (ivs.hp === -1) ivs.hp = expectedHpDV * 2;
 			const hpDV = Math.floor(ivs.hp / 2);
 			if (expectedHpDV !== hpDV) {
-				problems.push(`${name} has an HP DV of ${hpDV}, but its Atk, Def, Spe, and Spc DVs give it an HP DV of ${expectedHpDV}.`);
+				problems.push(`${name} has an HP DV of ${hpDV}, but its Atk, Def, Spe, and Spc DVs give it an HP DV of ${expectedHpDV}.`); // FIXME 14
 			}
 			if (ivs.spa !== ivs.spd) {
 				if (dex.gen === 2) {
-					problems.push(`${name} has different SpA and SpD DVs, which is not possible in Gen 2.`);
+					problems.push(`${name} has different SpA and SpD DVs, which is not possible in Gen 2.`); // FIXME 15
 				} else {
 					ivs.spd = ivs.spa;
 				}
@@ -400,7 +514,11 @@ export class TeamValidator {
 
 				const expectedGender = (atkDV >= genderThreshold ? 'M' : 'F');
 				if (set.gender && set.gender !== expectedGender) {
-					problems.push(`${name} is ${set.gender}, but it has an Atk DV of ${atkDV}, which makes its gender ${expectedGender}.`);
+					problems.push({
+						reason: InvalidationReason.WRONG_GENDER,
+						context: expectedGender,
+						message: `${name} is ${set.gender}, but it has an Atk DV of ${atkDV}, which makes its gender ${expectedGender}.`,
+					});
 				} else {
 					set.gender = expectedGender;
 				}
@@ -769,7 +887,7 @@ export class TeamValidator {
 			} else {
 				throw new Error(`Unrecognized problem ${JSON.stringify(problem)}`);
 			}
-			problems.push(problemString);
+			problems.push({reason: Invalidation.INVALID_MOVE, move: problem.moveName, message: problemString});
 		}
 
 		if (problems.length) return problems;
@@ -780,7 +898,10 @@ export class TeamValidator {
 			);
 			if (lsetData.sourcesBefore < 5) lsetData.sourcesBefore = 0;
 			if (!lsetData.sourcesBefore && !lsetData.sources.length) {
-				problems.push(`${name} has a hidden ability - it can't have moves only learned before gen 5.`);
+				problems.push({
+					reason: InvalidationReason.INVALID_MOVE,
+					message: `${name} has a hidden ability - it can't have moves only learned before gen 5.`,
+				});
 				return problems;
 			}
 		}
@@ -796,7 +917,10 @@ export class TeamValidator {
 				// Only one source, can't conflict with anything else
 			} else if (limitedEgg.includes('self')) {
 				// Self-moves are always incompatible with anything else
-				problems.push(`${name}'s egg moves are incompatible.`);
+				problems.push({
+					reason: InvalidationReason.INVALID_MOVE,
+					message: `${name}'s egg moves are incompatible.`,
+				});
 			} else {
 				// Doing a full validation of the possible egg parents takes way too much
 				// CPU power (and is in NP), so we're just gonna use a heuristic:
@@ -881,7 +1005,10 @@ export class TeamValidator {
 					lsetData.sources = newSources;
 					if (!newSources.length) {
 						const moveNames = limitedEgg.map(id => dex.getMove(id).name);
-						problems.push(`${name}'s past gen egg moves ${moveNames.join(', ')} do not have a valid father. (Is this incorrect? If so, post the chainbreeding instructions in Bug Reports)`);
+						problems.push({
+							reason: InvalidationReason.INVALID_MOVE,
+							message: `${name}'s past gen egg moves ${moveNames.join(', ')} do not have a valid father. (Is this incorrect? If so, post the chainbreeding instructions in Bug Reports)`,
+						});
 					}
 				}
 			}
@@ -901,7 +1028,10 @@ export class TeamValidator {
 			});
 			if (!lsetData.sources.length && !lsetData.sourcesBefore) {
 				const babySpecies = dex.getTemplate(babyid).species;
-				problems.push(`${name}'s event/egg moves are from an evolution, and are incompatible with its moves from ${babySpecies}.`);
+				problems.push({
+					reason: InvalidationReason.INVALID_MOVE,
+					message: `${name}'s event/egg moves are from an evolution, and are incompatible with its moves from ${babySpecies}.`,
+				});
 			}
 		}
 
