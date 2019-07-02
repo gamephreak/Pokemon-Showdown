@@ -722,8 +722,7 @@ const commands = {
 			if (!targetUser.status) return this.errorReply(`${targetUser.name} does not have a status set.`);
 			if (!this.can('forcerename', targetUser)) return false;
 
-			let bracketIndex = targetUser.status.indexOf(')');
-			if (bracketIndex < 0) bracketIndex = -2; // Someone's trying to clear the "Idle" status, for some reason
+			const bracketIndex = targetUser.status.indexOf(')');
 			const status = targetUser.status.slice(bracketIndex + 2);
 			this.privateModAction(`(${targetUser.name}'s status "${status}" was cleared by ${user.name}${reason ? `: ${reason}` : ``})`);
 			this.globalModlog('CLEARSTATUS', targetUser, `from ${status} by ${user.name}${reason ? `: ${reason}` : ``}`);
