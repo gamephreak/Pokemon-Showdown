@@ -327,7 +327,7 @@ const commands = {
 		if (!this.can('rangeban')) return;
 
 		let [ip, roomid] = this.splitOne(target);
-		let targetRoom = roomid ? Rooms(roomid) : null;
+		let targetRoom = roomid ? Rooms.get(roomid) : null;
 		if (!targetRoom && targetRoom !== null) return this.errorReply(`The room "${roomid}" does not exist.`);
 		let results = /** @type {string[]} */ ([]);
 		let isAll = (cmd === 'ipsearchall');

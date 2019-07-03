@@ -34,7 +34,7 @@ const HISTORY_PERIOD = 6; // months
 const ScavengerGames = require("./scavenger-games");
 
 // convert points stored in the old format
-const scavsRoom = Rooms('scavengers');
+const scavsRoom = Rooms.get('scavengers');
 if (scavsRoom && Array.isArray(scavsRoom.winPoints)) {
 	scavsRoom.winPoints = {official: scavsRoom.winPoints.slice()};
 	scavsRoom.blitzPoints = {official: scavsRoom.blitzPoints};
@@ -497,7 +497,7 @@ class ScavengerHunt extends Rooms.RoomGame {
 		// prepare the next queue'd game
 		if (this.room.scavQueue && this.room.scavQueue.length) {
 			setTimeout(() => {
-				let room = Rooms(roomid);
+				let room = Rooms.get(roomid);
 				if (!room || room.game || !room.scavQueue.length) return;
 
 				let next = room.scavQueue.shift();

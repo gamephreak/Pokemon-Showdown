@@ -410,7 +410,7 @@ class Ladder extends LadderStore {
 		let games = /** @type {any} */ ({});
 		let atLeastOne = false;
 		for (const roomid of user.games) {
-			const room = Rooms(roomid);
+			const room = Rooms.get(roomid);
 			if (!room) {
 				Monitor.warn(`while searching, room ${roomid} expired for user ${user.userid} in rooms ${[...user.inRooms]} and games ${[...user.games]}`);
 				user.games.delete(roomid);
@@ -486,7 +486,7 @@ class Ladder extends LadderStore {
 	needsToMove(user) {
 		let out = undefined;
 		for (const roomid of user.games) {
-			const room = Rooms(roomid);
+			const room = Rooms.get(roomid);
 			if (!room || !room.battle || !room.battle.playerTable[user.userid]) continue;
 			const battle = /** @type {RoomBattle} */ (room.battle);
 			if (battle.requestCount <= 16) {

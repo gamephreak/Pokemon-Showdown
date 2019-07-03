@@ -952,7 +952,7 @@ const Punishments = new (class {
 
 		// Handle tournaments the user was in before being battle banned
 		for (let games of user.games.keys()) {
-			const gameRoom = Rooms(games).game;
+			const gameRoom = Rooms.get(games).game;
 			if (!gameRoom) continue; // this should never happen
 			// @ts-ignore
 			if (gameRoom.isTournament) {
@@ -1472,8 +1472,8 @@ const Punishments = new (class {
 		if (punishment && (punishment[0] === 'ROOMBAN' || punishment[0] === 'BLACKLIST')) {
 			return true;
 		}
-		if (Rooms(roomid).parent) {
-			return Punishments.checkNameInRoom(user, Rooms(roomid).parent.id);
+		if (Rooms.get(roomid).parent) {
+			return Punishments.checkNameInRoom(user, Rooms.get(roomid).parent.id);
 		}
 		return false;
 	}
@@ -1487,12 +1487,12 @@ const Punishments = new (class {
 	checkNewNameInRoom(user, userid, roomid) {
 		/** @type {Punishment?} */
 		let punishment = Punishments.roomUserids.nestedGet(roomid, userid) || null;
-		if (!punishment && Rooms(roomid).parent) {
-			punishment = Punishments.checkNewNameInRoom(user, userid, Rooms(roomid).parent.id);
+		if (!punishment && Rooms.get(roomid).parent) {
+			punishment = Punishments.checkNewNameInRoom(user, userid, Rooms.get(roomid).parent.id);
 		}
 		if (punishment) {
 			if (punishment[0] !== 'ROOMBAN' && punishment[0] !== 'BLACKLIST') return null;
-			const room = Rooms(roomid);
+			const room = Rooms.get(roomid);
 			if (room.game && room.game.removeBannedUser) {
 				room.game.removeBannedUser(user);
 			}
@@ -1556,7 +1556,7 @@ const Punishments = new (class {
 			}
 		}
 
-		const room = Rooms(roomid);
+		const room = Rooms.get(roomid);
 		if (!room) throw new Error(`Trying to ban a user from a nonexistent room: ${roomid}`);
 
 		if (room.parent) return Punishments.isRoomBanned(user, room.parent.id);

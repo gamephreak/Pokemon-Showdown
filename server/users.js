@@ -582,7 +582,7 @@ class User extends Chat.MessageContext {
 			return lockedSymbol + this.name;
 		}
 		if (roomid && roomid !== 'global') {
-			let room = Rooms(roomid);
+			let room = Rooms.get(roomid);
 			if (!room) {
 				throw new Error(`Room doesn't exist: ${roomid}`);
 			}
@@ -739,10 +739,10 @@ class User extends Chat.MessageContext {
 	 */
 	updateIdentity(roomid = null) {
 		if (roomid) {
-			return Rooms(roomid).onUpdateIdentity(this);
+			return Rooms.get(roomid).onUpdateIdentity(this);
 		}
 		for (const roomid of this.inRooms) {
-			Rooms(roomid).onUpdateIdentity(this);
+			Rooms.get(roomid).onUpdateIdentity(this);
 		}
 	}
 	/**
@@ -757,7 +757,7 @@ class User extends Chat.MessageContext {
 		let userid = toID(name);
 		if (userid !== this.userid) {
 			for (const roomid of this.games) {
-				const room = Rooms(roomid);
+				const room = Rooms.get(roomid);
 				if (!room || !room.game || room.game.ended) {
 					this.games.delete(roomid);
 					console.log(`desynced roomgame ${roomid} renaming ${this.userid} -> ${userid}`);
@@ -1001,7 +1001,7 @@ class User extends Chat.MessageContext {
 			connection.send(this.getUpdateuserText());
 		}
 		for (const roomid of this.games) {
-			const room = Rooms(roomid);
+			const room = Rooms.get(roomid);
 			if (!room) {
 				Monitor.warn(`while renaming, room ${roomid} expired for user ${this.userid} in rooms ${[...this.inRooms]} and games ${[...this.games]}`);
 				this.games.delete(roomid);
@@ -1011,7 +1011,7 @@ class User extends Chat.MessageContext {
 			room.game.onRename(this, oldid, joining, isForceRenamed);
 		}
 		for (const roomid of this.inRooms) {
-			Rooms(roomid).onRename(this, oldid, joining);
+			Rooms.get(roomid).onRename(this, oldid, joining);
 		}
 		if (isForceRenamed) this.trackRename = oldname;
 		return true;
@@ -1041,7 +1041,7 @@ class User extends Chat.MessageContext {
 	merge(oldUser) {
 		oldUser.cancelReady();
 		for (const roomid of oldUser.inRooms) {
-			Rooms(roomid).onLeave(oldUser);
+			Rooms.get(roomid).onLeave(oldUser);
 		}
 
 		if (this.locked === '#dnsbl' && !oldUser.locked) this.locked = null;
@@ -1102,7 +1102,7 @@ class User extends Chat.MessageContext {
 		connection.send(this.getUpdateuserText());
 		connection.user = this;
 		for (const roomid of connection.inRooms) {
-			let room = Rooms(roomid);
+			let room = Rooms.get(roomid);
 			if (!this.inRooms.has(roomid)) {
 				if (Punishments.checkNameInRoom(this, room.id)) {
 					// the connection was in a room that this user is banned from
@@ -1160,7 +1160,7 @@ class User extends Chat.MessageContext {
 
 		this.isStaff = Config.groups[this.group] && (Config.groups[this.group].lock || Config.groups[this.group].root);
 		if (!this.isStaff) {
-			let staffRoom = Rooms('staff');
+			let staffRoom = Rooms.get('staff');
 			this.isStaff = (staffRoom && staffRoom.auth && staffRoom.auth[this.userid]);
 		}
 		if (this.trusted) {
@@ -1193,7 +1193,7 @@ class User extends Chat.MessageContext {
 		const wasStaff = this.isStaff;
 		this.isStaff = Config.groups[this.group] && (Config.groups[this.group].lock || Config.groups[this.group].root);
 		if (!this.isStaff) {
-			let staffRoom = Rooms('staff');
+			let staffRoom = Rooms.get('staff');
 			this.isStaff = (staffRoom && staffRoom.auth && staffRoom.auth[this.userid]);
 		}
 		if (wasStaff !== this.isStaff) this.update('isStaff');
@@ -1256,7 +1256,7 @@ class User extends Chat.MessageContext {
 					this.markDisconnected();
 				}
 				for (const roomid of connection.inRooms) {
-					this.leaveRoom(Rooms(roomid), connection, true);
+					this.leaveRoom(Rooms.get(roomid), connection, true);
 				}
 				--this.ips[connection.ip];
 				this.connections.splice(i, 1);
@@ -1267,7 +1267,7 @@ class User extends Chat.MessageContext {
 			for (const roomid of this.inRooms) {
 				// should never happen.
 				Monitor.debug(`!! room miscount: ${roomid} not left`);
-				Rooms(roomid).onLeave(this);
+				Rooms.get(roomid).onLeave(this);
 			}
 			// cleanup
 			this.inRooms.clear();
@@ -1290,7 +1290,7 @@ class User extends Chat.MessageContext {
 			// console.log('DESTROY: ' + this.userid);
 			connection = this.connections[i];
 			for (const roomid of connection.inRooms) {
-				this.leaveRoom(Rooms(roomid), connection, true);
+				this.leaveRoom(Rooms.get(roomid), connection, true);
 			}
 			connection.destroy();
 		}
@@ -1376,7 +1376,7 @@ class User extends Chat.MessageContext {
 	 * @param {Connection?} [connection]
 	 */
 	joinRoom(roomid, connection = null) {
-		const room = Rooms(roomid);
+		const room = Rooms.get(roomid);
 		if (!room) throw new Error(`Room not found: ${roomid}`);
 		if (this.isAway()) this.clearStatus();
 		if (!connection) {
@@ -1405,7 +1405,7 @@ class User extends Chat.MessageContext {
 	 * @param {boolean} force
 	 */
 	leaveRoom(room, connection = null, force = false) {
-		room = Rooms(room);
+		room = Rooms.get(room);
 		if (room.id === 'global') {
 			// you can't leave the global room except while disconnecting
 			if (!force) return false;
@@ -1546,7 +1546,7 @@ class User extends Chat.MessageContext {
 
 		this.lastChatMessage = new Date().getTime();
 
-		let room = Rooms(roomid);
+		let room = Rooms.get(roomid);
 		if (room) {
 			Monitor.activeIp = connection.ip;
 			Chat.parse(message, room, this, connection);
@@ -1590,7 +1590,7 @@ class User extends Chat.MessageContext {
 	destroy() {
 		// deallocate user
 		for (const roomid of this.games) {
-			let room = Rooms(roomid);
+			let room = Rooms.get(roomid);
 			if (!room) {
 				Monitor.warn(`while deallocating, room ${roomid} did not exist for ${this.userid} in rooms ${[...this.inRooms]} and games ${[...this.games]}`);
 				this.games.delete(roomid);
@@ -1625,7 +1625,7 @@ function pruneInactive(threshold) {
 	let now = Date.now();
 	for (const user of users.values()) {
 		const awayTimer = user.can('lock') ? STAFF_IDLE_TIMER : IDLE_TIMER;
-		let bypass = user.isAway() || (!user.can('bypassall') && (user.can('bypassafktimer') || Array.from(user.inRooms).some(room => user.can('bypassafktimer', null, /** @type {ChatRoom} */ (Rooms(room))))));
+		let bypass = user.isAway() || (!user.can('bypassall') && (user.can('bypassafktimer') || Array.from(user.inRooms).some(room => user.can('bypassafktimer', null, /** @type {ChatRoom} */ (Rooms.get(room))))));
 		if (!bypass && !user.connections.some(connection => now - connection.lastActiveTime < awayTimer)) {
 			user.popup(`You have been inactive for over ${awayTimer / MINUTES} minutes, and have been marked as idle as a result. To mark yourself as back, send a message in chat, or use the /back command.`);
 			user.setAway('(Idle)');
@@ -1728,7 +1728,7 @@ function socketReceive(worker, workerid, socketid, message) {
 	const roomId = message.substr(0, pipeIndex) || (Rooms.lobby || Rooms.global).id;
 	message = message.slice(pipeIndex + 1);
 
-	const room = Rooms(roomId);
+	const room = Rooms.get(roomId);
 	if (!room) return;
 	const multilineMessage = Chat.multiLinePattern.test(message);
 	if (multilineMessage) {

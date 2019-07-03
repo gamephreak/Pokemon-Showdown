@@ -430,7 +430,7 @@ class PageContext extends MessageContext {
 		super(options.user, options.language);
 
 		this.connection = options.connection;
-		this.room = Rooms('global');
+		this.room = Rooms.get('global');
 		this.pageid = options.pageid;
 
 		this.initialized = false;
@@ -459,7 +459,7 @@ class PageContext extends MessageContext {
 
 		// Since we assume pageids are all in the form of view-pagename-roomid
 		// if someone is calling this function, so this is the only case we cover (for now)
-		const room = Rooms(parts[2]);
+		const room = Rooms.get(parts[2]);
 		if (!room) {
 			this.send(`<h2>Invalid room.</h2>`);
 			return false;

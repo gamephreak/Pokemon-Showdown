@@ -1157,7 +1157,7 @@ function deleteTournament(id, output) {
 	}
 	tournament.forceEnd();
 	delete exports.tournaments[id];
-	const room = Rooms(id);
+	const room = Rooms.get(id);
 	if (room) delete room.game;
 	return true;
 }

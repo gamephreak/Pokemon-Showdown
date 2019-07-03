@@ -100,7 +100,7 @@ global.Users = require('./users');
 
 global.Punishments = require('./punishments');
 
-global.Rooms = require('./rooms');
+global.Rooms = require('./rooms').Rooms;
 
 global.Verifier = require('../.server-dist/verifier');
 Verifier.PM.spawn();
