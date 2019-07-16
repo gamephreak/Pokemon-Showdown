@@ -133,7 +133,6 @@ let Formats = [
 		],
 
 		mod: 'gen7',
-		maxLevel: 5,
 		ruleset: ['Pokemon', 'Standard', 'Swagger Clause', 'Team Preview', 'Little Cup'],
 		banlist: [
 			'Aipom', 'Cutiefly', 'Drifloon', 'Gligar', 'Gothita', 'Meditite', 'Misdreavus', 'Murkrow', 'Porygon',
@@ -149,7 +148,6 @@ let Formats = [
 
 		mod: 'gen7',
 		searchShow: false,
-		maxLevel: 5,
 		ruleset: ['[Gen 7] LC'],
 		banlist: [
 			// LC
@@ -202,12 +200,8 @@ let Formats = [
 		],
 
 		mod: 'gen7',
-		teamLength: {
-			validate: [1, 3],
-			battle: 1,
-		},
 		allowMultisearch: true,
-		ruleset: ['Pokemon', 'Species Clause', 'Nickname Clause', 'Moody Clause', 'OHKO Clause', 'Evasion Moves Clause', 'Accuracy Moves Clause', 'Swagger Clause', 'Endless Battle Clause', 'HP Percentage Mod', 'Cancel Mod', 'Team Preview'],
+		ruleset: ['Pokemon', 'Species Clause', 'Nickname Clause', 'Moody Clause', 'OHKO Clause', 'Evasion Moves Clause', 'Accuracy Moves Clause', 'Swagger Clause', 'Endless Battle Clause', 'HP Percentage Mod', 'Cancel Mod', 'Team Preview', '1v1'],
 		banlist: [
 			'Illegal', 'Unreleased', 'Arceus', 'Darkrai', 'Deoxys-Base', 'Deoxys-Attack', 'Deoxys-Defense', 'Dialga', 'Giratina',
 			'Groudon', 'Ho-Oh', 'Kangaskhan-Mega', 'Kyogre', 'Kyurem-Black', 'Kyurem-White', 'Lugia', 'Lunala', 'Marshadow', 'Mewtwo',
@@ -252,7 +246,6 @@ let Formats = [
 
 		mod: 'gen7',
 		searchShow: false,
-		maxLevel: 5,
 		ruleset: ['[Gen 7] LC', 'Allow CAP'],
 	},
 	{
@@ -265,12 +258,7 @@ let Formats = [
 		],
 
 		mod: 'gen7',
-		maxForcedLevel: 50,
-		teamLength: {
-			validate: [3, 6],
-			battle: 3,
-		},
-		ruleset: ['Pokemon', 'Standard GBU'],
+		ruleset: ['Pokemon', 'Standard GBU', 'Battle Spot Singles'],
 		requirePentagon: true,
 	},
 	{
@@ -278,12 +266,7 @@ let Formats = [
 		threads: [`&bullet; <a href="https://www.smogon.com/forums/threads/3651251/">Battle Spot Special 16</a>`],
 
 		mod: 'gen7',
-		maxForcedLevel: 50,
-		teamLength: {
-			validate: [3, 6],
-			battle: 3,
-		},
-		ruleset: ['Pokemon', 'Standard GBU'],
+		ruleset: ['Pokemon', 'Standard GBU', 'Battle Spot Singles'],
 		banlist: [
 			'Aegislash', 'Azumarill', 'Blaziken', 'Breloom', 'Celesteela', 'Charizard', 'Cloyster', 'Dragonite',
 			'Excadrill', 'Ferrothorn', 'Garchomp', 'Gengar', 'Gliscor', 'Greninja', 'Gyarados', 'Heatran', 'Hippowdon',
@@ -360,14 +343,8 @@ let Formats = [
 		name: "[Gen 7] VGC 2019 Sun Series",
 
 		mod: 'gen7',
-		gameType: 'doubles',
 		searchShow: false,
-		forcedLevel: 50,
-		teamLength: {
-			validate: [4, 6],
-			battle: 4,
-		},
-		ruleset: ['Pokemon', 'Minimal GBU', 'VGC Timer'],
+		ruleset: ['Pokemon', 'Minimal GBU', 'VGC', 'VGC Timer'],
 		banlist: ['Unown', 'Dragon Ascent', 'Custap Berry', 'Enigma Berry', 'Jaboca Berry', 'Micle Berry', 'Rowap Berry'],
 		requirePlus: true,
 		onValidateTeam(team) {
@@ -390,14 +367,8 @@ let Formats = [
 		name: "[Gen 7] VGC 2019 Moon Series",
 
 		mod: 'gen7',
-		gameType: 'doubles',
 		searchShow: false,
-		forcedLevel: 50,
-		teamLength: {
-			validate: [4, 6],
-			battle: 4,
-		},
-		ruleset: ['Pokemon', 'Minimal GBU', 'VGC Timer'],
+		ruleset: ['Pokemon', 'Minimal GBU', 'VGC', 'VGC Timer'],
 		banlist: ['Unown', 'Dragon Ascent'],
 		requirePlus: true,
 		onValidateTeam(team) {
@@ -424,13 +395,7 @@ let Formats = [
 		],
 
 		mod: 'gen7',
-		gameType: 'doubles',
-		forcedLevel: 50,
-		teamLength: {
-			validate: [4, 6],
-			battle: 4,
-		},
-		ruleset: ['Pokemon', 'Minimal GBU', 'VGC Timer'],
+		ruleset: ['Pokemon', 'Minimal GBU', 'VGC', 'VGC Timer'],
 		banlist: ['Unown'],
 		requirePlus: true,
 		onValidateTeam(team) {
@@ -452,14 +417,8 @@ let Formats = [
 		],
 
 		mod: 'gen7',
-		gameType: 'doubles',
-		forcedLevel: 50,
-		teamLength: {
-			validate: [4, 6],
-			battle: 4,
-		},
 		timer: {starting: 5 * 60, addPerTurn: 0, maxPerTurn: 55, maxFirstTurn: 90, grace: 90, timeoutAutoChoose: true, dcTimerBank: false},
-		ruleset: ['Pokemon', 'Standard GBU'],
+		ruleset: ['Pokemon', 'Standard GBU', 'VGC', 'VGC Timer'],
 		banlist: ['Unown', 'Custap Berry', 'Enigma Berry', 'Jaboca Berry', 'Micle Berry', 'Rowap Berry'],
 		requirePlus: true,
 	},
@@ -472,15 +431,9 @@ let Formats = [
 		],
 
 		mod: 'vgc17',
-		gameType: 'doubles',
 		searchShow: false,
-		forcedLevel: 50,
-		teamLength: {
-			validate: [4, 6],
-			battle: 4,
-		},
-		timer: {starting: 15 * 60, addPerTurn: 0, maxPerTurn: 55, maxFirstTurn: 90, grace: 90, timeoutAutoChoose: true, dcTimerBank: false},
-		ruleset: ['Pokemon', 'Species Clause', 'Nickname Clause', 'Item Clause', 'Team Preview', 'Cancel Mod', 'Alola Pokedex'],
+		timer: {starting: 5 * 60, addPerTurn: 0, maxPerTurn: 55, maxFirstTurn: 90, grace: 90, timeoutAutoChoose: true, dcTimerBank: false},
+		ruleset: ['Pokemon', 'Species Clause', 'Nickname Clause', 'Item Clause', 'Cancel Mod', 'Alola Pokedex', 'VGC'],
 		banlist: [
 			'Illegal', 'Unreleased', 'Solgaleo', 'Lunala', 'Necrozma', 'Magearna', 'Marshadow', 'Zygarde', 'Mega',
 			'Custap Berry', 'Enigma Berry', 'Jaboca Berry', 'Micle Berry', 'Rowap Berry',
@@ -496,13 +449,7 @@ let Formats = [
 		],
 
 		mod: 'gen7',
-		gameType: 'doubles',
-		maxForcedLevel: 50,
-		teamLength: {
-			validate: [4, 6],
-			battle: 4,
-		},
-		ruleset: ['Pokemon', 'Standard GBU'],
+		ruleset: ['Pokemon', 'Standard GBU', 'Battle Spot Doubles'],
 		requirePentagon: true,
 	},
 	{
@@ -1373,7 +1320,6 @@ let Formats = [
 
 		mod: 'gen6',
 		searchShow: false,
-		maxLevel: 5,
 		ruleset: ['Pokemon', 'Standard', 'Team Preview', 'Little Cup'],
 		banlist: ['LC Uber', 'Gligar', 'Misdreavus', 'Scyther', 'Sneasel', 'Tangela', 'Baton Pass', 'Dragon Rage', 'Sonic Boom', 'Swagger'],
 	},
@@ -1415,11 +1361,7 @@ let Formats = [
 
 		mod: 'gen6',
 		searchShow: false,
-		teamLength: {
-			validate: [1, 3],
-			battle: 1,
-		},
-		ruleset: ['Pokemon', 'Nickname Clause', 'Moody Clause', 'OHKO Clause', 'Evasion Moves Clause', 'Accuracy Moves Clause', 'Swagger Clause', 'Endless Battle Clause', 'HP Percentage Mod', 'Cancel Mod', 'Team Preview'],
+		ruleset: ['Pokemon', 'Nickname Clause', 'Moody Clause', 'OHKO Clause', 'Evasion Moves Clause', 'Accuracy Moves Clause', 'Swagger Clause', 'Endless Battle Clause', 'HP Percentage Mod', 'Cancel Mod', 'Team Preview', '1v1'],
 		banlist: [
 			'Illegal', 'Unreleased', 'Arceus', 'Blaziken', 'Darkrai', 'Deoxys-Base', 'Deoxys-Attack', 'Deoxys-Defense',
 			'Dialga', 'Giratina', 'Groudon', 'Ho-Oh', 'Kangaskhan-Mega', 'Kyogre', 'Kyurem-White', 'Lugia', 'Mewtwo',
@@ -1448,12 +1390,7 @@ let Formats = [
 
 		mod: 'gen6',
 		searchShow: false,
-		maxForcedLevel: 50,
-		teamLength: {
-			validate: [3, 6],
-			battle: 3,
-		},
-		ruleset: ['Pokemon', 'Standard GBU'],
+		ruleset: ['Pokemon', 'Standard GBU', 'Battle Spot Singles'],
 		requirePentagon: true,
 	},
 	{
@@ -1497,14 +1434,8 @@ let Formats = [
 		],
 
 		mod: 'gen6',
-		gameType: 'doubles',
 		searchShow: false,
-		maxForcedLevel: 50,
-		teamLength: {
-			validate: [4, 6],
-			battle: 4,
-		},
-		ruleset: ['Pokemon', 'Species Clause', 'Nickname Clause', 'Item Clause', 'Team Preview', 'Cancel Mod'],
+		ruleset: ['Pokemon', 'Species Clause', 'Nickname Clause', 'Item Clause', 'Cancel Mod', 'VGC'],
 		banlist: [
 			'Illegal', 'Unreleased', 'Mew', 'Celebi', 'Jirachi', 'Deoxys', 'Deoxys-Attack', 'Deoxys-Defense', 'Deoxys-Speed', 'Phione', 'Manaphy', 'Darkrai',
 			'Shaymin', 'Shaymin-Sky', 'Arceus', 'Victini', 'Keldeo', 'Meloetta', 'Genesect', 'Diancie', 'Hoopa', 'Hoopa-Unbound', 'Volcanion', 'Soul Dew',
@@ -1528,14 +1459,8 @@ let Formats = [
 		],
 
 		mod: 'gen6',
-		gameType: 'doubles',
 		searchShow: false,
-		maxForcedLevel: 50,
-		teamLength: {
-			validate: [4, 6],
-			battle: 4,
-		},
-		ruleset: ['Pokemon', 'Standard GBU'],
+		ruleset: ['Pokemon', 'Standard GBU', 'Battle Spot Doubles'],
 		requirePentagon: true,
 	},
 	{
@@ -1647,7 +1572,6 @@ let Formats = [
 
 		mod: 'gen5',
 		searchShow: false,
-		maxLevel: 5,
 		ruleset: ['Pokemon', 'Standard', 'Team Preview', 'Little Cup'],
 		banlist: ['Berry Juice', 'Soul Dew', 'Dragon Rage', 'Sonic Boom', 'LC Uber', 'Sand Rush', 'Gligar', 'Murkrow', 'Scyther', 'Sneasel', 'Tangela'],
 	},
@@ -1671,11 +1595,7 @@ let Formats = [
 
 		mod: 'gen5',
 		searchShow: false,
-		teamLength: {
-			validate: [1, 3],
-			battle: 1,
-		},
-		ruleset: ['[Gen 5] OU'],
+		ruleset: ['[Gen 5] OU', '1v1'],
 		banlist: ['Focus Sash', 'Perish Song'],
 		unbanlist: ['Genesect', 'Landorus', 'Manaphy', 'Thundurus', 'Tornadus-Therian'],
 	},
@@ -1684,12 +1604,7 @@ let Formats = [
 
 		mod: 'gen5',
 		searchShow: false,
-		maxForcedLevel: 50,
-		teamLength: {
-			validate: [3, 6],
-			battle: 3,
-		},
-		ruleset: ['Pokemon', 'Standard GBU'],
+		ruleset: ['Pokemon', 'Standard GBU', 'Battle Spot Singles'],
 		banlist: ['Dark Void', 'Sky Drop'],
 	},
 	{
@@ -1730,14 +1645,8 @@ let Formats = [
 		name: "[Gen 5] GBU Doubles",
 
 		mod: 'gen5',
-		gameType: 'doubles',
 		searchShow: false,
-		maxForcedLevel: 50,
-		teamLength: {
-			validate: [4, 6],
-			battle: 4,
-		},
-		ruleset: ['Pokemon', 'Standard GBU'],
+		ruleset: ['Pokemon', 'Standard GBU', 'Battle Spot Doubles'],
 		banlist: ['Dark Void', 'Sky Drop'],
 	},
 	{
@@ -1808,7 +1717,6 @@ let Formats = [
 
 		mod: 'gen4',
 		searchShow: false,
-		maxLevel: 5,
 		ruleset: ['Pokemon', 'Standard', 'Little Cup'],
 		banlist: ['LC Uber', 'Misdreavus', 'Murkrow', 'Scyther', 'Sneasel', 'Tangela', 'Yanma', 'Berry Juice', 'Deep Sea Tooth', 'Dragon Rage', 'Hypnosis', 'Sonic Boom'],
 	},

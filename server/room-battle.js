@@ -175,7 +175,7 @@ class RoomBattleTimer {
 		this.lastDisabledTime = 0;
 		this.lastDisabledByUser = null;
 
-		const hasLongTurns = Dex.getFormat(battle.format, true).gameType !== 'singles';
+		const hasLongTurns = Dex.getRuleTable(Dex.getFormat(battle.format, true)).gameType[0] !== 'singles';
 		const isChallenge = (!battle.rated && !battle.room.tour);
 		const timerEntry = Dex.getRuleTable(Dex.getFormat(battle.format, true)).timer;
 		const timerSettings = timerEntry && timerEntry[0];
@@ -435,7 +435,7 @@ class RoomBattle extends RoomGames.RoomGame {
 		this.allowRenames = options.allowRenames !== undefined ? !!options.allowRenames : (!options.rated && !options.tour);
 
 		this.format = formatid;
-		this.gameType = format.gameType;
+		this.gameType = Dex.getRuleTable(format).gameType;
 		/**
 		 * The lower player's rating, for searching purposes.
 		 * 0 for unrated battles. 1 for unknown ratings.

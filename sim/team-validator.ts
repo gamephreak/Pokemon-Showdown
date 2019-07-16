@@ -30,9 +30,9 @@ export class TeamValidator {
 	baseValidateTeam(team: PokemonSet[] | null, removeNicknames = false): string[] | null {
 		const format = this.format;
 		const dex = this.dex;
+		const ruleTable = this.ruleTable;
 
 		let problems: string[] = [];
-		const ruleTable = this.ruleTable;
 		if (format.team) {
 			return null;
 		}
@@ -43,7 +43,7 @@ export class TeamValidator {
 			return [`You sent invalid team data. If you're not using a custom client, please report this as a bug.`];
 		}
 
-		let lengthRange = format.teamLength && format.teamLength.validate;
+		let lengthRange = ruleTable.teamLength && ruleTable.teamLength[0].validate;
 		if (!lengthRange) lengthRange = [1, 6];
 		if (format.gameType === 'doubles' && lengthRange[0] < 2) lengthRange[0] = 2;
 		if ((format.gameType === 'triples' || format.gameType === 'rotation') && lengthRange[0] < 3) lengthRange[0] = 3;
@@ -103,6 +103,7 @@ export class TeamValidator {
 	validateSet(set: PokemonSet, teamHas: AnyObject): string[] | null {
 		const format = this.format;
 		const dex = this.dex;
+		const ruleTable = this.ruleTable;
 
 		let problems: string[] = [];
 		if (!set) {
@@ -119,14 +120,14 @@ export class TeamValidator {
 		set.nature = dex.getNature(Dex.getString(set.nature)).name;
 		if (!Array.isArray(set.moves)) set.moves = [];
 
-		const maxLevel = format.maxLevel || 100;
-		const maxForcedLevel = format.maxForcedLevel || maxLevel;
+		const maxLevel = (ruleTable.maxLevel && ruleTable.maxLevel[0]) || 100;
+		const maxForcedLevel = (ruleTable.maxForcedLevel && ruleTable.maxForcedLevel[0]) || maxLevel;
 		let forcedLevel: number | null = null;
 		if (!set.level) {
 			set.level = (format.defaultLevel || maxLevel);
 		}
-		if (format.forcedLevel) {
-			forcedLevel = format.forcedLevel;
+		if (ruleTable.forcedLevel) {
+			forcedLevel = ruleTable.forcedLevel[0];
 		} else if (set.level >= maxForcedLevel) {
 			forcedLevel = maxForcedLevel;
 		}
@@ -150,7 +151,6 @@ export class TeamValidator {
 		const lsetData: PokemonSources = {sources: [], sourcesBefore: dex.gen};
 
 		const setHas: {[k: string]: true} = {};
-		const ruleTable = this.ruleTable;
 
 		for (const [rule] of ruleTable) {
 			const subformat = dex.getFormat(rule);

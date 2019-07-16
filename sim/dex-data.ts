@@ -171,6 +171,11 @@ export class RuleTable extends Map {
 	checkLearnset: [Function, string] | null;
 	timer: [Partial<GameTimerSettings>, string] | null;
 
+	maxForcedLevel: [number, string] | null;
+	forcedLevel: [number, string] | null;
+	maxLevel: [number, string] | null;
+	gameType: [number, string] | null;
+
 	constructor() {
 		super();
 		this.complexBans = [];

@@ -400,10 +400,58 @@ let BattleFormats = {
 			this.makeRequest('teampreview');
 		},
 	},
+	'1v1': {
+		effectType: 'Rule',
+		desc: "Bring three Pok&eacute;mon to Team Preview and choose one to battle.",
+		teamLength: {
+			validate: [1, 3],
+			battle: 1,
+		},
+	},
+	vgc: {
+		effectType: 'Rule',
+		name: 'VGC',
+		ruleset: ['Team Preview', 'VGC Timer'],
+		gameType: 'doubles',
+		forcedLevel: 50,
+		teamLength: {
+			validate: [4, 6],
+			battle: 4,
+		},
+	},
+	battlespotsingles: {
+		effectType: 'Rule',
+		name: 'Battle Spot Singles',
+		maxForcedLevel: 50,
+		teamLength: {
+			validate: [3, 6],
+			battle: 3,
+		},
+	},
+	battlespotdoubles: {
+		effectType: 'Rule',
+		name: 'Battle Spot Doubles',
+		maxForcedLevel: 50,
+		gameType: 'doubles',
+		teamLength: {
+			validate: [4, 6],
+			battle: 4,
+		},
+	},
+	battletower: {
+		effectType: 'Rule',
+		name: 'Battle Tower',
+		ruleset: ['Item Clause'],
+		maxForcedLevel: 50,
+		teamLength: {
+			validate: [3, 3],
+		},
+	},
 	littlecup: {
 		effectType: 'ValidatorRule',
 		name: 'Little Cup',
 		desc: "Only allows Pok&eacute;mon that can evolve and don't have any prior evolutions",
+		maxLevel: 5,
 		onValidateSet(set) {
 			let template = this.getTemplate(set.species || set.name);
 			if (template.prevo && this.getTemplate(template.prevo).gen <= this.gen) {
@@ -416,7 +464,7 @@ let BattleFormats = {
 		},
 	},
 	blitz: {
-		effectType: 'ValidatorRule',
+		effectType: 'Rule',
 		name: 'Blitz',
 		desc: "Super-fast 'Blitz' timer giving 30 second Team Preview and 10 seconds per turn.",
 		onBegin() {
@@ -425,7 +473,7 @@ let BattleFormats = {
 		timer: {starting: 15, addPerTurn: 5, maxPerTurn: 15, maxFirstTurn: 30, grace: 30},
 	},
 	vgctimer: {
-		effectType: 'ValidatorRule',
+		effectType: 'Rule',
 		name: 'VGC Timer',
 		desc: "VGC's timer: 90 second Team Preview, 7 minutes Your Time, 1 minute per turn",
 		timer: {starting: 7 * 60, addPerTurn: 0, maxPerTurn: 55, maxFirstTurn: 90, grace: 90, timeoutAutoChoose: true, dcTimerBank: false},

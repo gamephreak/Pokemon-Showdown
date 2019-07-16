@@ -778,12 +778,12 @@ export class ModdedDex {
 				}
 			}
 		}
-		if (format.checkLearnset) {
-			ruleTable.checkLearnset = [format.checkLearnset, format.name];
-		}
-		if (format.timer) {
-			ruleTable.timer = [format.timer, format.name];
-		}
+		if (format.checkLearnset) ruleTable.checkLearnset = [format.checkLearnset, format.name];
+		if (format.timer) ruleTable.timer = [format.timer, format.name];
+		if (format.maxForcedLevel) ruleTable.maxForcedLevel = [format.maxForcedLevel, format.name];
+		if (format.forcedLevel) ruleTable.forcedLevel = [format.forcedLevel, format.name];
+		if (format.maxLevel) ruleTable.maxLevel = [format.maxLevel, format.name];
+		if (format.gameType) ruleTable.gameType = [format.gameType, format.name];
 
 		for (const rule of ruleset) {
 			const ruleSpec = this.validateRule(rule, format);
@@ -836,10 +836,54 @@ export class ModdedDex {
 			if (subRuleTable.timer) {
 				if (ruleTable.timer) {
 					throw new Error(
-						`"${format.name}" has conflicting move validation rules from ` +
+						`"${format.name}" has conflicting timer validation rules from ` +
 						`"${ruleTable.timer[1]}" and "${subRuleTable.timer[1]}"`);
 				}
 				ruleTable.timer = subRuleTable.timer;
+			}
+			if (subRuleTable.maxForcedLevel) {
+				if (ruleTable.maxForcedLevel) {
+					if (ruleTable.maxForcedLevel[0] !== subRuleTable.maxForcedLevel[0]) {
+						throw new Error(
+							`"${format.name}" has conflicting maxForcedLevel from ` +
+							`"${ruleTable.maxForcedLevel[1]}" and "${subRuleTable.maxForcedLevel[1]}"`);
+					}
+				} else {
+					ruleTable.maxForcedLevel = subRuleTable.maxForcedLevel;
+				}
+			}
+			if (subRuleTable.forcedLevel) {
+				if (ruleTable.forcedLevel) {
+					if (ruleTable.maxForcedLevel[0] !== subRuleTable.maxForcedLevel[0]) {
+						throw new Error(
+							`"${format.name}" has conflicting forcedLevel from ` +
+							`"${ruleTable.forcedLevel[1]}" and "${subRuleTable.forcedLevel[1]}"`);
+					}
+				} else {
+					ruleTable.forcedLevel = subRuleTable.forcedLevel;
+				}
+			}
+			if (subRuleTable.maxLevel) {
+				if (ruleTable.maxLevel) {
+					if (ruleTable.maxForcedLevel[0] !== subRuleTable.maxForcedLevel[0]) {
+						throw new Error(
+							`"${format.name}" has conflicting maxLevel from ` +
+							`"${ruleTable.maxLevel[1]}" and "${subRuleTable.maxLevel[1]}"`);
+					}
+				} else {
+					ruleTable.maxLevel = subRuleTable.maxLevel;
+				}
+			}
+			if (subRuleTable.gameType) {
+				if (ruleTable.gameType) {
+					if (ruleTable.maxForcedLevel[0] !== subRuleTable.maxForcedLevel[0]) {
+						throw new Error(
+							`"${format.name}" has conflicting gameType from ` +
+							`"${ruleTable.gameType[1]}" and "${subRuleTable.gameType[1]}"`);
+					}
+				} else {
+					ruleTable.gameType = subRuleTable.gameType;
+				}
 			}
 		}
 

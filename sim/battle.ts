@@ -1061,8 +1061,8 @@ export class Battle extends Dex.ModdedDex {
 	}
 
 	getMaxTeamSize() {
-		const teamLengthData = this.getFormat().teamLength;
-		return (teamLengthData && teamLengthData.battle) || 6;
+		const ruleTable = this.getRuleTable(this.getFormat());
+		return (ruleTable.teamLength && ruleTable.teamLength[0].battle) || 6;
 	}
 
 	getRequests(type: RequestState, maxTeamSize: number) {
@@ -2510,12 +2510,11 @@ export class Battle extends Dex.ModdedDex {
 				side.pokemon = side.pokemon.slice(0, side.pokemonLeft);
 			}
 
-			if (format.teamLength && format.teamLength.battle) {
-				// Trim the team: not all of the Pokémon brought to Preview will battle.
-				for (const side of this.sides) {
-					side.pokemon = side.pokemon.slice(0, format.teamLength.battle);
-					side.pokemonLeft = side.pokemon.length;
-				}
+			const maxTeamSize = getMaxTeamSize();
+			// Trim the team: possibly not all of the Pokémon brought to Preview will battle.
+			for (const side of this.sides) {
+				side.pokemon = side.pokemon.slice(0, maxTeamSize);
+				side.pokemonLeft = side.pokemon.length;
 			}
 
 			this.add('start');
