@@ -1,4 +1,13 @@
-#!/usr/bin/env node
+/**
+ * Imports and generates the '@pokemon-showdown/sets' package.
+ * Pokemon Showdown - http://pokemonshowdown.com/
+ *
+ * Run with `node tools/set-import [version]`.
+ *
+ * @license MIT
+ */
+
+'use strict';
 
 const child_process = require('child_process');
 const path = require('path');
@@ -27,7 +36,6 @@ const importer = require('./importer.js');
 
 const SETS = path.resolve(__dirname, 'sets');
 (async () => {
-
 	const imports = [];
 	for (let [i, generationData] of (await importer.importAll()).entries()) {
 		fs.writeFileSync(path.resolve(SETS, `gen${i + 1}.json`), JSON.stringify(generationData));
@@ -58,10 +66,10 @@ const SETS = path.resolve(__dirname, 'sets');
 		"types": "build/index.d.ts",
 		"repository": {
 			"type": "git",
-			"url": "https://github.com/Zarel/Pokemon-Showdown.git"
+			"url": "https://github.com/Zarel/Pokemon-Showdown.git",
 		},
 		"author": "Kirk Scheibelhut",
-		"license": "MIT"
+		"license": "MIT",
 	};
 	fs.writeFileSync(path.resolve(SETS, 'package.json'), JSON.stringify(packagejson, null, 2));
 
@@ -80,7 +88,5 @@ const SETS = path.resolve(__dirname, 'sets');
 		'exports.forFormat = forFormat;',
 	].join('\n');
 	fs.writeFileSync(path.resolve(SETS, 'index.js'), indexjs);
-
 })().catch(err => console.error(err));
-
 

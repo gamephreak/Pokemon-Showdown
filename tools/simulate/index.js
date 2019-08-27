@@ -2,7 +2,7 @@
  * Random Simulation harness for testing and benchmarking purposes.
  * Pokemon Showdown - http://pokemonshowdown.com/
  *
- * Refer to `SIMULATE.md` for detailed usage instructions.
+ * Refer to `README.md` for detailed usage instructions.
  *
  * @license MIT
  */
