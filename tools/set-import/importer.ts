@@ -1,5 +1,3 @@
-import * as path from 'path';
-import * as fs from 'fs';
 import * as util from 'util';
 
 import {Dex} from '../../sim/dex';
@@ -37,6 +35,5 @@ interface FormatData {
 }
 
 export function importAll(dir: string) {
-	// DEBUG
-	console.log(JSON5.stringify({url: smogon.Statistics.URL}));
+	return [{}] as GenerationData[];
 }
