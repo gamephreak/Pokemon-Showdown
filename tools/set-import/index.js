@@ -18,7 +18,7 @@ function missing(dep) {
 const deps = [];
 if (missing('smogon')) deps.push('smogon');
 if (missing('json5')) deps.push('json5');
-if (deps.length) shell(`npm install ${deps}`);
+if (deps.length) shell(`npm install --no-save ${deps}`);
 
 if (!missing('source-map-support')) require('source-map-support').install();
 
