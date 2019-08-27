@@ -8,10 +8,11 @@
 npm-debug.log
 .eslintcache
 package-lock.json
+tools/set-import/sets/*.json
 
 # Typescript build artifacts
 .*-dist/
-tools/set-import/index.js
+tools/set-import/importer.js
 
 # visual studio live share
 .vs

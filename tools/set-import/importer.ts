@@ -1,3 +1,13 @@
+import * as path from 'path';
+import * as fs from 'fs';
+import * as util from 'util';
+
+import {Dex} from '../../sim/dex';
+Dex.includeModData();
+
+import * as smogon from 'smogon';
+const JSON5 = require('json5');
+
 type DeepPartial<T> = {
 	[P in keyof T]?: T[P] extends (infer I)[]
 	? (DeepPartial<I>)[]
@@ -5,12 +15,12 @@ type DeepPartial<T> = {
 };
 
 // eg. 'gen1.json'
-export interface GenerationData {
+interface GenerationData {
 	[formatid: string]: FormatData;
 }
 
 // eg. 'gen7balancedhackmons.json'
-export interface FormatData {
+interface FormatData {
 	sets: {
 		[source: string]: {
 			[speciesid: string]: {
@@ -24,4 +34,9 @@ export interface FormatData {
 		items: {[id: string]: number};
 		moves: {[id: string]: number};
 	};
+}
+
+export function importAll(dir: string) {
+	// DEBUG
+	console.log(JSON5.stringify({url: smogon.Statistics.URL}));
 }
