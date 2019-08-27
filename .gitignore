@@ -11,6 +11,7 @@ package-lock.json
 
 # Typescript build artifacts
 .*-dist/
+tools/set-import/index.js
 
 # visual studio live share
 .vs

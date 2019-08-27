@@ -57,6 +57,7 @@ try {
 
 sucrase('./sim', './.sim-dist');
 sucrase('./lib', './.lib-dist');
+sucrase('./tools/set-import', './tools/set-import');
 sucrase('./server', './.server-dist');
 // NOTE: replace is asynchronous - add additional replacements for the same path in one call instead of making multiple calls.
 replace(path.join(__dirname, '.sim-dist'), [
