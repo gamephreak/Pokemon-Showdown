@@ -3,6 +3,7 @@ import * as https from 'https';
 import * as util from 'util';
 
 // tslint:disable: no-implicit-dependencies
+// @ts-ignore - index.js installs these for us
 import JSON5 = require('json5');
 import * as smogon from 'smogon';
 
@@ -50,7 +51,7 @@ interface FormatData {
 
 type Generation = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
-const TIERS = new Set([
+export const TIERS = new Set([
 	'ubers', 'ou', 'uu', 'ru', 'nu', 'pu', 'zu', 'lc', 'cap',
 	'doublesou', 'battlespotsingles', 'battlespotdoubles',
 	'vgc16', 'vgc17', 'vgc18', 'vgc19ultraseries', 'letsgoou',
@@ -69,31 +70,31 @@ for (let gen = 1; gen <= 7; gen++) {
 }
 
 export async function importAll() {
-	const date = smogon.Statistics.latest(await request(smogon.Statistics.URL));
+	const index = await request(smogon.Statistics.URL);
 
 	const imports = [];
 	for (let gen = 1; gen <= 7; gen++) {
-		imports.push(importGen(gen as Generation, date));
+		imports.push(importGen(gen as Generation, index));
 	}
 
 	return Promise.all(imports);
 }
 
-async function importGen(gen: Generation, date: string) {
+async function importGen(gen: Generation, index: string) {
 	const sets: Sets = {};
 
 	const statisticsByFormat = new Map<Format, smogon.UsageStatistics>();
 	const setsByFormat: { [formatid: string]: PokemonSets } = {};
 	const numByFormat: { [formatid: string]: number } = {};
-	const imports = [];
-	for (const pokemon in SPECIES[gen]) { // TODO
-		imports.push(importSmogonSets(pokemon, gen, setsByFormat, numByFormat));
-	}
-	await Promise.all(imports);
+	// const imports = [];
+	// for (const pokemon in SPECIES[gen]) { // TODO
+		// imports.push(importSmogonSets(pokemon, gen, setsByFormat, numByFormat));
+	// }
+	// await Promise.all(imports);
 	sets['smogon.com/dex'] = setsByFormat;
 
 	for (const format of FORMATS.values()) {
-		const url = getStatisticsURL(date, format);
+		const url = getStatisticsURL(index, format);
 		try {
 			statisticsByFormat.set(format, smogon.Statistics.parse(await fetch(url)));
 		} catch (err) {
@@ -110,17 +111,46 @@ async function importGen(gen: Generation, date: string) {
 	return {sets, weights: getWeightsByFormat(statisticsByFormat)};
 }
 
-const STATISTICS: { [formatid: string]: string } = {
-	gen1uu: 'http://www.smogon.com/stats/2017-12/chaos/gen1uu-1500.json',
-	gen2uu: 'http://www.smogon.com/stats/2016-08/chaos/gen2uu-1500.json',
-	gen2nu: 'http://www.smogon.com/stats/2018-11/chaos/gen2nu-1500.json',
-	gen3uu: 'http://www.smogon.com/stats/2016-11/chaos/gen3uu-1500.json',
-	gen3nu: 'http://www.smogon.com/stats/2016-09/chaos/gen3nu-1500.json',
-	gen4nu: 'http://www.smogon.com/stats/2016-10/chaos/gen4nu-1500.json',
+// Fallback URLs for past formats that are most likely not present in current usage statistics.
+const STATISTICS: {[formatid: string]: string} = {
+	gen1uu: 'https://www.smogon.com/stats/2017-12/chaos/gen1uu-1500.json',
+	gen2uu: 'https://www.smogon.com/stats/2016-08/chaos/gen2uu-1500.json',
+	gen2nu: 'https://www.smogon.com/stats/2018-11/chaos/gen2nu-1500.json',
+	gen3uu: 'https://www.smogon.com/stats/2016-11/chaos/gen3uu-1500.json',
+	gen3nu: 'https://www.smogon.com/stats/2016-09/chaos/gen3nu-1500.json',
+	gen4nu: 'https://www.smogon.com/stats/2016-10/chaos/gen4nu-1500.json',
+	gen3ubers: 'https://www.smogon.com/stats/2018-09/chaos/gen3ubers-1500.json',
+	gen4ubers: 'https://www.smogon.com/stats/2019-03/chaos/gen4ubers-1500.json',
+	gen4uu: 'https://www.smogon.com/stats/2019-04/chaos/gen4uu-1500.json',
+	gen4lc: 'https://www.smogon.com/stats/2018-02/chaos/gen4lc-1500.json',
+	gen4doublesou: 'https://www.smogon.com/stats/2018-01/chaos/gen4doublesou-1500.json',
+	gen4anythinggoes: 'https://www.smogon.com/stats/2017-04/chaos/gen4anythinggoes-1500.json',
+	gen5ubers: 'https://www.smogon.com/stats/2018-11/chaos/gen5ubers-1500.json',
+	gen5uu: 'https://www.smogon.com/stats/2019-04/chaos/gen5uu-1500.json',
+	gen5ru: 'https://www.smogon.com/stats/2018-01/chaos/gen5ru-1500.json',
+	gen5nu: 'https://www.smogon.com/stats/2017-11/chaos/gen5nu-1500.json',
+	gen5lc: 'https://www.smogon.com/stats/2018-05/chaos/gen5lc-1500.json',
+	gen5doublesou: 'https://www.smogon.com/stats/2018-12/chaos/gen5doublesou-1500.json',
+	gen51v1: 'https://www.smogon.com/stats/2019-06/chaos/gen51v1-1500.json',
+	gen5monotype: 'https://www.smogon.com/stats/2018-10/chaos/gen5monotype-1500.json',
+	gen6ubers: 'https://www.smogon.com/stats/2018-12/chaos/gen6ubers-1500.json',
+	gen6uu: 'https://www.smogon.com/stats/2019-06/chaos/gen6uu-1500.json',
+	gen6ru: 'https://www.smogon.com/stats/2018-01/chaos/gen6ru-1500.json',
+	gen6nu: 'https://www.smogon.com/stats/2018-06/chaos/gen6nu-1500.json',
+	gen6pu: 'https://www.smogon.com/stats/2017-11/chaos/gen6pu-1500.json',
+	gen6lc: 'https://www.smogon.com/stats/2017-11/chaos/gen6lc-1500.json',
+	gen6cap: 'https://www.smogon.com/stats/2018-01/chaos/gen6cap-1500.json',
+	gen6doublesou: 'https://www.smogon.com/stats/2017-12/chaos/gen6doublesou-1500.json',
+	gen6battlespotsingles: 'https://www.smogon.com/stats/2018-03/chaos/gen6battlespotsingles-1500.json',
+	gen6battlespotdoubles: 'https://www.smogon.com/stats/2018-01/chaos/gen6battlespotdoubles-1500.json',
+	gen6anythinggoes: 'https://www.smogon.com/stats/2018-03/chaos/gen6anythinggoes-1500.json',
+	gen61v1: 'https://www.smogon.com/stats/2018-10/chaos/gen61v1-1500.json',
+	gen6monotype: 'https://www.smogon.com/stats/2018-01/chaos/gen6monotype-1500.json',
 };
 
-function getStatisticsURL(date: string, format: Format) {
-	return STATISTICS[format.id] || smogon.Statistics.url(date, format.id);
+export function getStatisticsURL(index: string, format: Format) {
+	if (STATISTICS[format.id] && !index.includes(format.id)) return STATISTICS[format.id];
+	return smogon.Statistics.url(smogon.Statistics.latest(index), format.id);
 }
 
 async function importSmogonSets(
@@ -157,6 +187,31 @@ async function importSmogonSets(
 	}
 }
 
+function toPokemonSet(format: Format, pokemon: string, set: smogon.Moveset) {
+	const level = getLevel(format, set.level);
+	return {
+		level: level === 100 ? undefined : level,
+		moves: set.moveslots.map(ms => ms[0]),
+		ability: fixedAbility(format, pokemon) || set.abilities[0],
+		item: set.items[0] === 'No Item' ? undefined : set.items[0],
+		nature: set.natures[0],
+		ivs: toStatsTable(set.ivconfigs[0], 31),
+		evs: toStatsTable(set.evconfigs[0]),
+	};
+
+}
+function toStatsTable(stats?: StatsTable, elide = 0) {
+	if (!stats) return undefined;
+
+	const s: Partial<StatsTable> = {};
+	let stat: keyof StatsTable;
+	for (stat in stats) {
+		const val = stats[stat];
+		if (val !== elide) s[stat] = val;
+	}
+	return s;
+}
+
 const SMOGON = {
 	uber: 'ubers',
 	doubles: 'doublesou',
@@ -170,7 +225,13 @@ const SMOGON = {
 } as unknown as {[id: string]: ID};
 
 // 3 retries after ~(40, 200, 1000)ms
-const getAnalysis = retrying(async (url: string) => smogon.Analyses.process(await request(url)), 3, 40);
+const getAnalysis = retrying(async (url: string) => {
+	try {
+		return await smogon.Analyses.process(await request(url));
+	} catch (err) {
+		throw new RetryableError(err.message);
+	}
+}, 3, 40);
 
 async function getAnalysesByFormat(pokemon: string, gen: Generation) {
 	const id = toID(pokemon);
@@ -204,8 +265,7 @@ function getUsageBasedSets(
 ) {
 	const sets: PokemonSets = {};
 	const dex = Dex.forFormat(format);
-
-	const threshold = format === 'Ubers' || format === 'Doubles' ? 0.03 : 0.01; // TODO tweak
+	const threshold = getUsageThreshold(format);
 	let num = 0;
 	for (const pokemon in statistics.data) {
 		const stats = statistics.data[pokemon];
@@ -234,6 +294,18 @@ function getUsageBasedSets(
 	}
 	report(format, num, 'smogon.com/stats');
 	return sets;
+}
+
+function getUsageThreshold(format: Format) {
+	return format.id.match(/uber|anythinggoes|doublesou/) ? 0.03 : 0.01;
+}
+
+function skip(format: Format, pokemon: string, set: DeepPartial<PokemonSet>) {
+	return false; // TODO
+}
+
+function fixedAbility(format: Format, pokemon: string) {
+	return undefined; // TODO
 }
 
 function validSet(format: Format, pokemon: string, name: string, set: DeepPartial<PokemonSet>) {
@@ -324,12 +396,18 @@ function updateWeights(
 // 20 QPS, 3 retries after ~(40, 200, 1000)ms
 const request = retrying(throttling(fetch, 20, 100), 3, 40);
 
-function fetch(url: string) {
+export function fetch(url: string) {
 	const client = url.startsWith('http:') ? http : https;
 	return new Promise<string>((resolve, reject) => {
 		// @ts-ignore ???
 		const req = client.get(url, (res: IncomingMessage) => {
-			if (res.statusCode !== 200) return reject(new Error(`HTTP ${res.statusCode}`));
+			if (res.statusCode !== 200) {
+				if (res.statusCode >= 500 && res.statusCode < 600) {
+					return reject(new RetryableError(`HTTP ${res.statusCode}`));
+				} else {
+					return reject(new Error(`HTTP ${res.statusCode}`));
+				}
+			}
 			Streams.readAll(res).then(resolve, reject);
 		});
 		req.on('error', reject);
@@ -337,20 +415,32 @@ function fetch(url: string) {
 	});
 }
 
+class RetryableError extends Error {
+	constructor(message?: string) {
+		super(message);
+		// restore prototype chain
+		Object.setPrototypeOf(this, new.target.prototype);
+	}
+}
+
 function retrying<I, O>(fn: (args: I) => Promise<O>, retries: number, wait: number): (args: I) => Promise<O> {
 	const retry = async (args: I, attempt = 0): Promise<O> => {
 		try {
 			return fn(args);
 		} catch (err) {
-			attempt++;
-			if (attempt > retries) throw err;
-			const timeout = Math.round(attempt * wait * (1 + Math.random() / 2));
-			warn(`Retrying ${args} in ${timeout}ms (${attempt}):`, err);
-			return new Promise(resolve => {
-				setTimeout(async () => {
-					resolve(await retry(args, attempt++));
-				}, timeout);
-			});
+			if (err instanceof RetryableError) {
+				attempt++;
+				if (attempt > retries) throw err;
+				const timeout = Math.round(attempt * wait * (1 + Math.random() / 2));
+				warn(`Retrying ${args} in ${timeout}ms (${attempt}):`, err);
+				return new Promise(resolve => {
+					setTimeout(async () => {
+						resolve(await retry(args, attempt++));
+					}, timeout);
+				});
+			} else {
+				throw err;
+			}
 		}
 	};
 	return retry;

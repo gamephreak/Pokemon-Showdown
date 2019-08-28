@@ -1,0 +1,43 @@
+#!/usr/bin/env node
+
+'use strict';
+
+const smogon = require('smogon');
+const importer = require('./importer');
+const Dex = require('../../.sim-dist/dex').Dex;
+
+const missing = new Map();
+(async () => {
+	const index = await importer.fetch(smogon.Statistics.URL);
+	for (let gen = 1; gen <= 7; gen++) {
+		for (const tier of importer.TIERS) {
+			const format = Dex.getFormat(`gen${gen}${tier}`);
+			if (format.exists) {
+				try {
+					await importer.fetch(importer.getStatisticsURL(index, format));
+				} catch (err) {
+					missing.set(format.id, []);
+				}
+			}
+		}
+	}
+
+	if (!missing.size) return;
+
+	const begin = new Date('Nov 2014');
+	const end = new Date(smogon.Statistics.latest(index));
+	for (let d = begin; d < end; d.setMonth(d.getMonth() + 1)) {
+		const year = `${1900 + d.getYear()}`
+		const month = `${d.getMonth() + 1}`.padStart(2, '0');
+		const url = `${smogon.Statistics.URL}${year}-${month}/`;
+		const raw = await importer.fetch(url);
+		for (const format of missing.keys()) {
+			if (raw.includes(format)) missing.get(format).push(url);
+		}
+	}
+
+	//console.log(JSON.stringify(Array.from(missing.entries()), null, 2));
+	for (const [format, urls] of missing.entries()) {
+		console.log(`${format}: '${urls[urls.length - 1]}chaos/${format}-1500.json',`);
+	}
+})();
