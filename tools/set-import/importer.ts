@@ -109,11 +109,14 @@ async function importGen(gen: Generation, index: string) {
 	const statisticsByFormat = new Map<Format, smogon.UsageStatistics>();
 	const setsByFormat: { [formatid: string]: PokemonSets } = {};
 	const numByFormat: { [formatid: string]: number } = {};
-	// const imports = [];
-	// for (const pokemon in SPECIES[gen]) { // TODO FIXME: also canonicalize name...
-	// imports.push(importSmogonSets(pokemon, gen, setsByFormat, numByFormat));
-	// }
-	// await Promise.all(imports);
+	const imports = [];
+	const dex = Dex.forFormat(`gen${gen}ou`);
+	for (const id in dex.data.Pokedex) {
+		const g = toGen(dex, id);
+		if (!g || g > gen) continue;
+		imports.push(importSmogonSets(dex.getTemplate(id).name, gen, setsByFormat, numByFormat));
+	}
+	await Promise.all(imports);
 	sets['smogon.com/dex'] = setsByFormat;
 
 	for (const {format, gen: g} of FORMATS.values()) {
@@ -471,10 +474,10 @@ async function importThirdPartySets(
 		let num = 0;
 		for (const mon in json) {
 			const pokemon = dex.getTemplate(mon).name;
-			// if (!calc.SPECIES[gen][pokemon]) { TODO FIXME
-				// error(`Pokemon ${pokemon} does not exist in generation ${gen}`);
-				// continue;
-			// }
+			if (toGen(dex, pokemon) !== gen) {
+				error(`Pokemon ${pokemon} does not exist in generation ${gen}`);
+				continue;
+			}
 			sets[pokemon] = sets[pokemon] || {};
 			for (const name in json[mon]) {
 				const set = fixThirdParty(dex, pokemon, json[mon][name]);
@@ -521,6 +524,20 @@ function fromShort(s: string): StatName | undefined {
 		case 'sp':
 			return 'spe';
 	}
+}
+
+// TODO: Fix dex data such that CAP mons have a correct gen set
+function toGen(dex: ModdedDex, name: string): Generation | undefined {
+	const pokemon = dex.getTemplate(name);
+	if (!pokemon.exists || (pokemon.isNonstandard && pokemon.isNonstandard !== 'CAP')) return undefined;
+	const n = pokemon.num;
+	if (n > 721 || (n <= -23 && n >= -27) || (n <= -120 && n >= -126)) return 7;
+	if (n > 649 || (n <= -12 && n >= -17) || (n <= -106 && n >= -110)) return 6;
+	if (n > 493 || (n <= -12 && n >= -17) || (n <= -111 && n >= -115)) return 5;
+	if (n > 386 || (n <= -1 && n >= -11) || (n <= -101 && n >= -104) || (n <= -116 && n >= -119)) return 4;
+	if (n > 251) return 3;
+	if (n > 151) return 2;
+	if (n > 0) return 1;
 }
 
 class RetryableError extends Error {
