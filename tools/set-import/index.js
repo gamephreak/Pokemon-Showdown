@@ -2,7 +2,17 @@
  * Imports and generates the '@pokemon-showdown/sets' package.
  * Pokemon Showdown - http://pokemonshowdown.com/
  *
- * Run with `node tools/set-import [version]`.
+ * Run with `node tools/set-import [version]`. If version is not specified,
+ * the 'patch' version of the existing package will be bumped. If version is
+ * 'minor' or 'monthly', the minor version will be bumped. In general, every
+ * month after usage stats are processed this script should be run to update
+ * the sets package and bump the minor version. If this script is run in
+ * between usage stats updates, the patch version should be bumped. If a
+ * breaking change occurs to the output format, the major version must be
+ * bumped (with 'major' or 'breaking' as the version argument). The exact
+ * version string (eg. '1.2.3') can also be provided. After creating the set
+ * import, provided there are no serious errors, the package can be released
+ * by running `npm publish` in the `sets/` directory.
  *
  * @license MIT
  */
@@ -47,11 +57,17 @@ const SETS = path.resolve(__dirname, 'sets');
 	}
 
 	let version = process.argv[2];
-	if (!version) {
+	if (!version || version.match(/^[^\d]/)) {
 		try {
 			const current = require('./sets/package.json').version;
 			const [major, minor, patch] = current.split('.');
-			version = `${major}.${minor}.${Number(patch) + 1}`;
+			if (version === 'major' || version === 'breaking') {
+				version = `${Number(major) + 1}.${minor}.${patch}`;
+			} else if (version === 'minor' || version === 'monthly') {
+				version = `${major}.${Number(minor) + 1}.${patch}`;
+			} else {
+				version = `${major}.${minor}.${Number(patch) + 1}`;
+			}
 		} catch (err) {
 			console.error("Version required to create '@pokemon-showdown/sets' package");
 			process.exit(1);

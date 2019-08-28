@@ -1,9 +1,10 @@
-import * as util from 'util';
 import * as http from 'http';
 import * as https from 'https';
+import * as util from 'util';
 
+// tslint:disable: no-implicit-dependencies
+import JSON5 = require('json5');
 import * as smogon from 'smogon';
-const JSON5 = require('json5');
 
 import * as Streams from '../../lib/streams';
 import {Dex} from '../../sim/dex';
@@ -20,10 +21,10 @@ type DeepPartial<T> = {
 interface PokemonSets {
 	[speciesid: string]: {
 		[name: string]: DeepPartial<PokemonSet>;
-	}
+	};
 }
 
-interface Sets {[source: string]: PokemonSets};
+interface Sets {[source: string]: PokemonSets; }
 
 interface Weights  {
 	species: {[id: string]: number};
@@ -81,6 +82,7 @@ export async function importAll() {
 async function importGen(gen: Generation, date: string) {
 	const sets: Sets = {};
 
+	const statisticsByFormat = new Map<Format, smogon.UsageStatistics>();
 	const setsByFormat: { [formatid: string]: PokemonSets } = {};
 	const numByFormat: { [formatid: string]: number } = {};
 	const imports = [];
@@ -90,11 +92,11 @@ async function importGen(gen: Generation, date: string) {
 	await Promise.all(imports);
 	sets['smogon.com/dex'] = setsByFormat;
 
-	for (const format of FORMATS) {
+	for (const format of FORMATS.values()) {
 		const url = getStatisticsURL(date, format);
 		try {
 			statisticsByFormat.set(format, smogon.Statistics.parse(await fetch(url)));
-		} catch (err: Error) {
+		} catch (err) {
 			error(`${url} = ${err}`);
 		}
 
@@ -105,7 +107,7 @@ async function importGen(gen: Generation, date: string) {
 		sets['smogon.com/stats'][format.id] = getUsageBasedSets(format, statistics);
 	}
 
-	return {sets: sets, weights: getWeightsByFormat(statisticsByFormat)};
+	return {sets, weights: getWeightsByFormat(statisticsByFormat)};
 }
 
 const STATISTICS: { [formatid: string]: string } = {
@@ -131,10 +133,10 @@ async function importSmogonSets(
 	if (!analysesByFormat) return;
 
 	for (const [format, analyses] of analysesByFormat.entries()) {
-		let setsForPokemon = setsByFormat[format];
+		let setsForPokemon = setsByFormat[format.id];
 		if (!setsForPokemon) {
 			setsForPokemon = {};
-			setsByFormat[format] = setsForPokemon;
+			setsByFormat[format.id] = setsForPokemon;
 		}
 		let sets = setsForPokemon[pokemon];
 		if (!sets) {
@@ -145,12 +147,10 @@ async function importSmogonSets(
 		for (const analysis of analyses) {
 			for (const moveset of analysis.movesets) {
 				const set = toPokemonSet(format, pokemon, moveset);
-				if (validPokemonSet(gen, format, set)) {
-					if (filter(gen, format, pokemon, set)) continue;
-					sets[cleanName(moveset.name)] = set;
-					numByFormat[format] = (numByFormat[format] || 0) + 1;
-				} else {
-					invalid(gen, format, pokemon, moveset.name, set);
+				const name = moveset.name.replace(/"/g, `'`);
+				if (validSet(format, pokemon, name, set) && !skip(format, pokemon, set)) {
+					sets[name] = set;
+					numByFormat[format.id] = (numByFormat[format.id] || 0) + 1;
 				}
 			}
 		}
@@ -176,8 +176,7 @@ async function getAnalysesByFormat(pokemon: string, gen: Generation) {
 	const id = toID(pokemon);
 	if (id.endsWith('totem')) return undefined;
 	const url = smogon.Analyses.url(pokemon, gen);
-	const analysesByTier = getAnalysis(url);
-
+	const analysesByTier = await getAnalysis(url);
 	if (!analysesByTier) {
 		error(`Unable to process analysis: ${url}`);
 		return undefined;
@@ -185,7 +184,7 @@ async function getAnalysesByFormat(pokemon: string, gen: Generation) {
 
 	const analysesByFormat = new Map<Format, smogon.Analysis[]>();
 	for (const [tier, analyses] of analysesByTier.entries()) {
-		const format = FORMATS[`gen${gen}${SMOGON[tier] || tier}`];
+		const format = FORMATS.get(`gen${gen}${SMOGON[tier] || tier}` as ID);
 		if (format) analysesByFormat.set(format, analyses);
 	}
 	return analysesByFormat;
@@ -201,7 +200,7 @@ function getLevel(format: Format, level = 0) {
 
 function getUsageBasedSets(
 	format: Format,
-	statistics: smogon.UsageStatistics,
+	statistics: smogon.UsageStatistics
 ) {
 	const sets: PokemonSets = {};
 	const dex = Dex.forFormat(format);
@@ -214,11 +213,11 @@ function getUsageBasedSets(
 			const set: DeepPartial<PokemonSet> = {
 				moves: (top(stats.Moves, 4) as string[]).map(m => dex.getMove(m).name),
 			};
-			if (gen >= 2 && format.id !== 'gen7letsgoou') {
+			if (format.gen >= 2 && format.id !== 'gen7letsgoou') {
 				const id = top(stats.Items) as string;
 				set.item = dex.getItem(id).name;
 			}
-			if (gen >= 3) {
+			if (format.gen >= 3) {
 				const id = top(stats.Abilities) as string;
 				set.ability = fixedAbility(format, pokemon) || dex.getAbility(id).name;
 				const { nature, evs } = fromSpread(top(stats.Spreads) as string);
@@ -226,19 +225,19 @@ function getUsageBasedSets(
 				if (format.id !== 'gen7letsgoou') set.evs = evs;
 			}
 			const name = 'Showdown Usage';
-			if (validSet(format, pokemon, name, set) && !skip(gen, format, pokemon, set)) {
+			if (validSet(format, pokemon, name, set) && !skip(format, pokemon, set)) {
 				sets[pokemon] = {};
 				sets[pokemon][name] = set;
 				num++;
 			}
 		}
 	}
-	report(gen, format, num, 'smogon.com/stats');
+	report(format, num, 'smogon.com/stats');
 	return sets;
 }
 
 function validSet(format: Format, pokemon: string, name: string, set: DeepPartial<PokemonSet>) {
-	const invalid = VALIDATORS.get(format)!.validateSet(set, {});
+	const invalid = VALIDATORS.get(format.id)!.validateSet(set as PokemonSet, {});
 	if (!invalid) return true;
 	const title = color(`${format.name}: ${pokemon} (${name})'`, 91);
 	const details = `${JSON.stringify(set)} = ${invalid.join(', ')}`;
@@ -262,7 +261,7 @@ function top(weighted: { [key: string]: number }, n = 1): string | string[] | un
 	if (n === 0) return undefined;
 	// Optimize the common case with an linear algorithm instead of log-linear
 	if (n === 1) {
-		let max = undefined;
+		let max;
 		for (const key in weighted) {
 			if (!max || weighted[max] < weighted[key]) max = key;
 		}
@@ -352,8 +351,8 @@ function retrying<I, O>(fn: (args: I) => Promise<O>, retries: number, wait: numb
 					resolve(await retry(args, attempt++));
 				}, timeout);
 			});
-		};
-	}
+		}
+	};
 	return retry;
 }
 
@@ -405,6 +404,3 @@ function warn(s: string, err: Error) {
 function error(s: string) {
 	console.error(color(s, 91));
 }
-
-
-
