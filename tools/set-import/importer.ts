@@ -57,13 +57,13 @@ export const TIERS = new Set([
 	'vgc16', 'vgc17', 'vgc18', 'vgc19ultraseries', 'letsgoou',
 	'anythinggoes', 'balancedhackmons', '1v1', 'monotype',
 ]);
-const FORMATS = new Map<ID, Format>();
+const FORMATS = new Map<ID, {gen: Generation, format: Format}>();
 const VALIDATORS = new Map<ID, TeamValidator>();
 for (let gen = 1; gen <= 7; gen++) {
 	for (const tier of TIERS) {
 		const format = Dex.getFormat(`gen${gen}${tier}`);
 		if (format.exists) {
-			FORMATS.set(format.id, format);
+			FORMATS.set(format.id, {gen: gen as Generation, format});
 			VALIDATORS.set(format.id, new TeamValidator(format));
 		}
 	}
@@ -116,7 +116,9 @@ async function importGen(gen: Generation, index: string) {
 	// await Promise.all(imports);
 	sets['smogon.com/dex'] = setsByFormat;
 
-	for (const format of FORMATS.values()) {
+	for (const {format, gen: g} of FORMATS.values()) {
+		if (g !== gen) continue;
+
 		const url = getStatisticsURL(index, format);
 		try {
 			statisticsByFormat.set(format, smogon.Statistics.parse(await request(url)));
@@ -127,7 +129,7 @@ async function importGen(gen: Generation, index: string) {
 	}
 
 	for (const [format, statistics] of statisticsByFormat.entries()) {
-		sets['smogon.com/stats'][format.id] = importUsageBasedSets(format, statistics);
+		sets['smogon.com/stats'][format.id] = importUsageBasedSets(gen, format, statistics);
 	}
 
 	for (const source in THIRD_PARTY_SOURCES) {
@@ -217,11 +219,12 @@ function validSet(format: Format, pokemon: string, name: string, set: DeepPartia
 }
 
 function skip(dex: ModdedDex, format: Format, pokemon: string, set: DeepPartial<PokemonSet>) {
+	const {gen} = FORMATS.get(format.id)!;
 	const hasMove = (m: string) => set.moves && set.moves.includes(m);
 	const bh = format.id.includes('balancedhackmons');
 
 	if (pokemon === 'Groudon-Primal' && set.item !== 'Red Orb') return true;
-	if (pokemon === 'Kyogre-Primal' && set.item !== 'Blue Orb' && !(bh && format.gen === 7)) return true;
+	if (pokemon === 'Kyogre-Primal' && set.item !== 'Blue Orb' && !(bh && gen === 7)) return true;
 	if (pokemon === 'Rayquaza-Mega' && (format.id.includes('ubers') || !hasMove('Dragon Ascent'))) return true;
 	if (bh) return false; // Everying else is legal
 
@@ -268,8 +271,8 @@ async function getAnalysesByFormat(pokemon: string, gen: Generation) {
 
 	const analysesByFormat = new Map<Format, smogon.Analysis[]>();
 	for (const [tier, analyses] of analysesByTier.entries()) {
-		const format = FORMATS.get(`gen${gen}${SMOGON[tier] || tier}` as ID);
-		if (format) analysesByFormat.set(format, analyses);
+		const f = FORMATS.get(`gen${gen}${SMOGON[tier] || tier}` as ID);
+		if (f) analysesByFormat.set(f.format, analyses);
 	}
 	return analysesByFormat;
 }
@@ -327,10 +330,7 @@ export function getStatisticsURL(index: string, format: Format) {
 }
 
 // TODO: Use bigram matrix + bucketed spreads logic for more realistic sets
-function importUsageBasedSets(
-	format: Format,
-	statistics: smogon.UsageStatistics
-) {
+function importUsageBasedSets(gen: Generation, format: Format, statistics: smogon.UsageStatistics) {
 	const sets: PokemonSets = {};
 	const dex = Dex.forFormat(format);
 	const threshold = getUsageThreshold(format);
@@ -341,11 +341,11 @@ function importUsageBasedSets(
 			const set: DeepPartial<PokemonSet> = {
 				moves: (top(stats.Moves, 4) as string[]).map(m => dex.getMove(m).name),
 			};
-			if (format.gen >= 2 && format.id !== 'gen7letsgoou') {
+			if (gen >= 2 && format.id !== 'gen7letsgoou') {
 				const id = top(stats.Items) as string;
 				set.item = dex.getItem(id).name;
 			}
-			if (format.gen >= 3) {
+			if (gen >= 3) {
 				const id = top(stats.Abilities) as string;
 				set.ability = fixedAbility(dex, pokemon) || dex.getAbility(id).name;
 				const { nature, evs } = fromSpread(top(stats.Spreads) as string);
@@ -367,8 +367,6 @@ function importUsageBasedSets(
 function getUsageThreshold(format: Format) {
 	return format.id.match(/uber|anythinggoes|doublesou/) ? 0.03 : 0.01;
 }
-
-
 
 const STATS: StatName[] = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
 
@@ -451,8 +449,9 @@ async function importThirdPartySets(
 ) {
 	const setsByFormat: { [formatid: string]: PokemonSets } = {};
 	for (const formatid in data.files) {
-		const format = FORMATS.get(formatid as ID);
-		if (!format || gen !== format.gen) continue;
+		const f = FORMATS.get(formatid as ID);
+		if (!f || f.gen !== gen) continue;
+		const {format} = f;
 		const dex = Dex.forFormat(format);
 
 		const file = data.files[formatid];
@@ -470,15 +469,15 @@ async function importThirdPartySets(
 			setsByFormat[format.id] = sets;
 		}
 		let num = 0;
-		for (let raw in json) {
-			const pokemon = dex.getTemplate(raw).name;
-			//if (!calc.SPECIES[gen][pokemon]) { TODO FIXME
-				//error(`Pokemon ${pokemon} does not exist in generation ${gen}`);
-				//continue;
-			//}
+		for (const mon in json) {
+			const pokemon = dex.getTemplate(mon).name;
+			// if (!calc.SPECIES[gen][pokemon]) { TODO FIXME
+				// error(`Pokemon ${pokemon} does not exist in generation ${gen}`);
+				// continue;
+			// }
 			sets[pokemon] = sets[pokemon] || {};
-			for (const name in json[raw]) {
-				const set = fixThirdParty(dex, pokemon, json[raw][name]);
+			for (const name in json[mon]) {
+				const set = fixThirdParty(dex, pokemon, json[mon][name]);
 				if (validSet(format, pokemon, name, set) && !skip(dex, format, pokemon, set)) {
 					sets[pokemon][cleanName(name)] = set;
 					num++;
