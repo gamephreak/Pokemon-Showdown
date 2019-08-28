@@ -27,17 +27,16 @@ const missing = new Map();
 	const begin = new Date('Nov 2014');
 	const end = new Date(smogon.Statistics.latest(index));
 	for (let d = begin; d < end; d.setMonth(d.getMonth() + 1)) {
-		const year = `${1900 + d.getYear()}`
 		const month = `${d.getMonth() + 1}`.padStart(2, '0');
-		const url = `${smogon.Statistics.URL}${year}-${month}/`;
-		const raw = await importer.fetch(url);
+		const date = `${1900 + d.getYear()}-${month}`;
+		const raw = await importer.fetch(`${smogon.Statistics.URL}${date}/`);
 		for (const format of missing.keys()) {
-			if (raw.includes(format)) missing.get(format).push(url);
+			if (raw.includes(format)) missing.get(format).push(date);
 		}
 	}
 
 	//console.log(JSON.stringify(Array.from(missing.entries()), null, 2));
-	for (const [format, urls] of missing.entries()) {
-		console.log(`${format}: '${urls[urls.length - 1]}chaos/${format}-1500.json',`);
+	for (const [format, dates] of missing.entries()) {
+		console.log(`${format}: '${dates[dates.length - 1]}',`);
 	}
 })();

@@ -69,6 +69,29 @@ for (let gen = 1; gen <= 7; gen++) {
 	}
 }
 
+const THIRD_PARTY_SOURCES: {[source: string]: {url: string, files: {[formatid: string]: string}}} = {
+	'damagecalc.trainertower.com': {
+		url: 'https://raw.githubusercontent.com/jake-white/VGC-Damage-Calculator/gh-pages/script_res/',
+		files: {
+			gen6battlespotsingles: 'setdex_globalLink.js',
+			gen6vgc2016: 'setdex_nuggetBridge.js',
+			gen7vgc2017: 'setdex_tt2017.js',
+			gen7vgc2018: 'setdex_tt2018.js',
+			gen7vgc2019ultraseries: 'setdex_tt2019.js',
+		},
+	},
+	'cantsay.github.io': {
+		url: 'https://raw.githubusercontent.com/cantsay/cantsay.github.io/master/_scripts/',
+		files: {
+			gen7lgpeou: 'setdex_LG_sets.js',
+			gen7bssfactory: 'setdex_factory_sets.js',
+			gen5battlespotsingles: 'setdex_gen5_sets.js',
+			gen6battlespotsingles: 'setdex_gen6_sets.js',
+			gen7battlespotsingles: 'setdex_gen7_sets.js',
+		},
+	},
+};
+
 export async function importAll() {
 	const index = await request(smogon.Statistics.URL);
 
@@ -87,8 +110,8 @@ async function importGen(gen: Generation, index: string) {
 	const setsByFormat: { [formatid: string]: PokemonSets } = {};
 	const numByFormat: { [formatid: string]: number } = {};
 	// const imports = [];
-	// for (const pokemon in SPECIES[gen]) { // TODO
-		// imports.push(importSmogonSets(pokemon, gen, setsByFormat, numByFormat));
+	// for (const pokemon in SPECIES[gen]) { // TODO FIXME: also canonicalize name...
+	// imports.push(importSmogonSets(pokemon, gen, setsByFormat, numByFormat));
 	// }
 	// await Promise.all(imports);
 	sets['smogon.com/dex'] = setsByFormat;
@@ -96,61 +119,22 @@ async function importGen(gen: Generation, index: string) {
 	for (const format of FORMATS.values()) {
 		const url = getStatisticsURL(index, format);
 		try {
-			statisticsByFormat.set(format, smogon.Statistics.parse(await fetch(url)));
+			statisticsByFormat.set(format, smogon.Statistics.parse(await request(url)));
 		} catch (err) {
 			error(`${url} = ${err}`);
 		}
-
-		if (numByFormat[format.id])  report(format, numByFormat[format.id], 'smogon.com/dex');
+		if (numByFormat[format.id]) report(format, numByFormat[format.id], 'smogon.com/dex');
 	}
 
 	for (const [format, statistics] of statisticsByFormat.entries()) {
-		sets['smogon.com/stats'][format.id] = getUsageBasedSets(format, statistics);
+		sets['smogon.com/stats'][format.id] = importUsageBasedSets(format, statistics);
+	}
+
+	for (const source in THIRD_PARTY_SOURCES) {
+		sets[source] = await importThirdPartySets(gen, source, THIRD_PARTY_SOURCES[source]);
 	}
 
 	return {sets, weights: getWeightsByFormat(statisticsByFormat)};
-}
-
-// Fallback URLs for past formats that are most likely not present in current usage statistics.
-const STATISTICS: {[formatid: string]: string} = {
-	gen1uu: 'https://www.smogon.com/stats/2017-12/chaos/gen1uu-1500.json',
-	gen2uu: 'https://www.smogon.com/stats/2016-08/chaos/gen2uu-1500.json',
-	gen2nu: 'https://www.smogon.com/stats/2018-11/chaos/gen2nu-1500.json',
-	gen3uu: 'https://www.smogon.com/stats/2016-11/chaos/gen3uu-1500.json',
-	gen3nu: 'https://www.smogon.com/stats/2016-09/chaos/gen3nu-1500.json',
-	gen4nu: 'https://www.smogon.com/stats/2016-10/chaos/gen4nu-1500.json',
-	gen3ubers: 'https://www.smogon.com/stats/2018-09/chaos/gen3ubers-1500.json',
-	gen4ubers: 'https://www.smogon.com/stats/2019-03/chaos/gen4ubers-1500.json',
-	gen4uu: 'https://www.smogon.com/stats/2019-04/chaos/gen4uu-1500.json',
-	gen4lc: 'https://www.smogon.com/stats/2018-02/chaos/gen4lc-1500.json',
-	gen4doublesou: 'https://www.smogon.com/stats/2018-01/chaos/gen4doublesou-1500.json',
-	gen4anythinggoes: 'https://www.smogon.com/stats/2017-04/chaos/gen4anythinggoes-1500.json',
-	gen5ubers: 'https://www.smogon.com/stats/2018-11/chaos/gen5ubers-1500.json',
-	gen5uu: 'https://www.smogon.com/stats/2019-04/chaos/gen5uu-1500.json',
-	gen5ru: 'https://www.smogon.com/stats/2018-01/chaos/gen5ru-1500.json',
-	gen5nu: 'https://www.smogon.com/stats/2017-11/chaos/gen5nu-1500.json',
-	gen5lc: 'https://www.smogon.com/stats/2018-05/chaos/gen5lc-1500.json',
-	gen5doublesou: 'https://www.smogon.com/stats/2018-12/chaos/gen5doublesou-1500.json',
-	gen51v1: 'https://www.smogon.com/stats/2019-06/chaos/gen51v1-1500.json',
-	gen5monotype: 'https://www.smogon.com/stats/2018-10/chaos/gen5monotype-1500.json',
-	gen6ubers: 'https://www.smogon.com/stats/2018-12/chaos/gen6ubers-1500.json',
-	gen6uu: 'https://www.smogon.com/stats/2019-06/chaos/gen6uu-1500.json',
-	gen6ru: 'https://www.smogon.com/stats/2018-01/chaos/gen6ru-1500.json',
-	gen6nu: 'https://www.smogon.com/stats/2018-06/chaos/gen6nu-1500.json',
-	gen6pu: 'https://www.smogon.com/stats/2017-11/chaos/gen6pu-1500.json',
-	gen6lc: 'https://www.smogon.com/stats/2017-11/chaos/gen6lc-1500.json',
-	gen6cap: 'https://www.smogon.com/stats/2018-01/chaos/gen6cap-1500.json',
-	gen6doublesou: 'https://www.smogon.com/stats/2017-12/chaos/gen6doublesou-1500.json',
-	gen6battlespotsingles: 'https://www.smogon.com/stats/2018-03/chaos/gen6battlespotsingles-1500.json',
-	gen6battlespotdoubles: 'https://www.smogon.com/stats/2018-01/chaos/gen6battlespotdoubles-1500.json',
-	gen6anythinggoes: 'https://www.smogon.com/stats/2018-03/chaos/gen6anythinggoes-1500.json',
-	gen61v1: 'https://www.smogon.com/stats/2018-10/chaos/gen61v1-1500.json',
-	gen6monotype: 'https://www.smogon.com/stats/2018-01/chaos/gen6monotype-1500.json',
-};
-
-export function getStatisticsURL(index: string, format: Format) {
-	if (STATISTICS[format.id] && !index.includes(format.id)) return STATISTICS[format.id];
-	return smogon.Statistics.url(smogon.Statistics.latest(index), format.id);
 }
 
 async function importSmogonSets(
@@ -163,6 +147,7 @@ async function importSmogonSets(
 	if (!analysesByFormat) return;
 
 	for (const [format, analyses] of analysesByFormat.entries()) {
+		const dex = Dex.forFormat(format);
 		let setsForPokemon = setsByFormat[format.id];
 		if (!setsForPokemon) {
 			setsForPokemon = {};
@@ -176,9 +161,9 @@ async function importSmogonSets(
 
 		for (const analysis of analyses) {
 			for (const moveset of analysis.movesets) {
-				const set = toPokemonSet(format, pokemon, moveset);
-				const name = moveset.name.replace(/"/g, `'`);
-				if (validSet(format, pokemon, name, set) && !skip(format, pokemon, set)) {
+				const set = toPokemonSet(dex, format, pokemon, moveset);
+				const name = cleanName(moveset.name);
+				if (validSet(format, pokemon, name, set) && !skip(dex, format, pokemon, set)) {
 					sets[name] = set;
 					numByFormat[format.id] = (numByFormat[format.id] || 0) + 1;
 				}
@@ -187,19 +172,23 @@ async function importSmogonSets(
 	}
 }
 
-function toPokemonSet(format: Format, pokemon: string, set: smogon.Moveset) {
+function cleanName(name: string) {
+	return name.replace(/"/g, `'`);
+}
+
+function toPokemonSet(dex: ModdedDex, format: Format, pokemon: string, set: smogon.Moveset) {
 	const level = getLevel(format, set.level);
 	return {
 		level: level === 100 ? undefined : level,
 		moves: set.moveslots.map(ms => ms[0]),
-		ability: fixedAbility(format, pokemon) || set.abilities[0],
+		ability: fixedAbility(dex, pokemon) || set.abilities[0],
 		item: set.items[0] === 'No Item' ? undefined : set.items[0],
 		nature: set.natures[0],
 		ivs: toStatsTable(set.ivconfigs[0], 31),
 		evs: toStatsTable(set.evconfigs[0]),
 	};
-
 }
+
 function toStatsTable(stats?: StatsTable, elide = 0) {
 	if (!stats) return undefined;
 
@@ -210,6 +199,40 @@ function toStatsTable(stats?: StatsTable, elide = 0) {
 		if (val !== elide) s[stat] = val;
 	}
 	return s;
+}
+
+function fixedAbility(dex: ModdedDex, pokemon: string) {
+	const template = dex.getTemplate(pokemon);
+	if (!['Mega', 'Primal', 'Ultra'].includes(template.forme)) return undefined;
+	return template.abilities[0];
+}
+
+function validSet(format: Format, pokemon: string, name: string, set: DeepPartial<PokemonSet>) {
+	const invalid = VALIDATORS.get(format.id)!.validateSet(set as PokemonSet, {});
+	if (!invalid) return true;
+	const title = color(`${format.name}: ${pokemon} (${name})'`, 91);
+	const details = `${JSON.stringify(set)} = ${invalid.join(', ')}`;
+	console.error(`Invalid set ${title}: ${color(details, 90)}`);
+	return false;
+}
+
+function skip(dex: ModdedDex, format: Format, pokemon: string, set: DeepPartial<PokemonSet>) {
+	const hasMove = (m: string) => set.moves && set.moves.includes(m);
+	const bh = format.id.includes('balancedhackmons');
+
+	if (pokemon === 'Groudon-Primal' && set.item !== 'Red Orb') return true;
+	if (pokemon === 'Kyogre-Primal' && set.item !== 'Blue Orb' && !(bh && format.gen === 7)) return true;
+	if (pokemon === 'Rayquaza-Mega' && (format.id.includes('ubers') || !hasMove('Dragon Ascent'))) return true;
+	if (bh) return false; // Everying else is legal
+
+	if (dex.getTemplate(pokemon).forme === 'Mega' && (dex.getItem(set.item)).megaStone !== pokemon) return true;
+	if (pokemon === 'Necrozma-Ultra' && set.item !== 'Ultranecrozium Z') return true;
+	if (pokemon === 'Greninja-Ash' && set.ability !== 'Battle Bond') return true;
+	if (pokemon === 'Zygarde-Complete' && set.ability !== 'Power Construct') return true;
+	if (pokemon === 'Darmanitan-Zen' && set.ability !== 'Zen Mode') return true;
+	if (pokemon === 'Meloetta-Pirouette' && !hasMove('Relic Song')) return true;
+
+	return false;
 }
 
 const SMOGON = {
@@ -259,7 +282,52 @@ function getLevel(format: Format, level = 0) {
 	return level > maxForcedLevel ? maxForcedLevel : level;
 }
 
-function getUsageBasedSets(
+// Fallback URLs for past formats that are most likely not present in current usage statistics
+const STATISTICS: {[formatid: string]: string} = {
+	gen1uu: '2017-12',
+	gen2uu: '2016-08',
+	gen2nu: '2018-11',
+	gen3uu: '2016-11',
+	gen3nu: '2016-09',
+	gen4nu: '2016-10',
+	gen3ubers: '2018-09',
+	gen4ubers: '2019-03',
+	gen4uu: '2019-04',
+	gen4lc: '2018-02',
+	gen4doublesou: '2018-01',
+	gen4anythinggoes: '2017-04',
+	gen5ubers: '2018-11',
+	gen5uu: '2019-04',
+	gen5ru: '2018-01',
+	gen5nu: '2017-11',
+	gen5lc: '2018-05',
+	gen5doublesou: '2018-12',
+	gen51v1: '2019-06',
+	gen5monotype: '2018-10',
+	gen6ubers: '2018-12',
+	gen6uu: '2019-06',
+	gen6ru: '2018-01',
+	gen6nu: '2018-06',
+	gen6pu: '2017-11',
+	gen6lc: '2017-11',
+	gen6cap: '2018-01',
+	gen6doublesou: '2017-12',
+	gen6battlespotsingles: '2018-03',
+	gen6battlespotdoubles: '2018-01',
+	gen6anythinggoes: '2018-03',
+	gen61v1: '2018-10',
+	gen6monotype: '2018-01',
+};
+
+export function getStatisticsURL(index: string, format: Format) {
+	if (STATISTICS[format.id] && !index.includes(format.id)) {
+		return `${smogon.Statistics.URL}${STATISTICS[format.id]}/chaos/${format.id}-1500.json`;
+	}
+	return smogon.Statistics.url(smogon.Statistics.latest(index), format.id);
+}
+
+// TODO: Use bigram matrix + bucketed spreads logic for more realistic sets
+function importUsageBasedSets(
 	format: Format,
 	statistics: smogon.UsageStatistics
 ) {
@@ -279,13 +347,13 @@ function getUsageBasedSets(
 			}
 			if (format.gen >= 3) {
 				const id = top(stats.Abilities) as string;
-				set.ability = fixedAbility(format, pokemon) || dex.getAbility(id).name;
+				set.ability = fixedAbility(dex, pokemon) || dex.getAbility(id).name;
 				const { nature, evs } = fromSpread(top(stats.Spreads) as string);
 				set.nature = nature;
 				if (format.id !== 'gen7letsgoou') set.evs = evs;
 			}
 			const name = 'Showdown Usage';
-			if (validSet(format, pokemon, name, set) && !skip(format, pokemon, set)) {
+			if (validSet(format, pokemon, name, set) && !skip(dex, format, pokemon, set)) {
 				sets[pokemon] = {};
 				sets[pokemon][name] = set;
 				num++;
@@ -300,22 +368,7 @@ function getUsageThreshold(format: Format) {
 	return format.id.match(/uber|anythinggoes|doublesou/) ? 0.03 : 0.01;
 }
 
-function skip(format: Format, pokemon: string, set: DeepPartial<PokemonSet>) {
-	return false; // TODO
-}
 
-function fixedAbility(format: Format, pokemon: string) {
-	return undefined; // TODO
-}
-
-function validSet(format: Format, pokemon: string, name: string, set: DeepPartial<PokemonSet>) {
-	const invalid = VALIDATORS.get(format.id)!.validateSet(set as PokemonSet, {});
-	if (!invalid) return true;
-	const title = color(`${format.name}: ${pokemon} (${name})'`, 91);
-	const details = `${JSON.stringify(set)} = ${invalid.join(', ')}`;
-	console.error(`Invalid set ${title}: ${color(details, 90)}`);
-	return false;
-}
 
 const STATS: StatName[] = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
 
@@ -393,6 +446,92 @@ function updateWeights(
 	}
 }
 
+async function importThirdPartySets(
+	gen: Generation, source: string, data: {url: string, files: {[formatid: string]: string}}
+) {
+	const setsByFormat: { [formatid: string]: PokemonSets } = {};
+	for (const formatid in data.files) {
+		const format = FORMATS.get(formatid as ID);
+		if (!format || gen !== format.gen) continue;
+		const dex = Dex.forFormat(format);
+
+		const file = data.files[formatid];
+		const raw = await request(`${data.url}${file}`);
+		const match = raw.match(/var.*?=.*?({.*})/s);
+		if (!match) {
+			error(`Could not find sets for ${source} in ${file}`);
+			continue;
+		}
+		// NOTE: These are not really PokemonSets until they've been fixed below
+		const json = JSON5.parse(match[1]) as PokemonSets;
+		let sets = setsByFormat[format.id];
+		if (!sets) {
+			sets = {};
+			setsByFormat[format.id] = sets;
+		}
+		let num = 0;
+		for (let raw in json) {
+			const pokemon = dex.getTemplate(raw).name;
+			//if (!calc.SPECIES[gen][pokemon]) { TODO FIXME
+				//error(`Pokemon ${pokemon} does not exist in generation ${gen}`);
+				//continue;
+			//}
+			sets[pokemon] = sets[pokemon] || {};
+			for (const name in json[raw]) {
+				const set = fixThirdParty(dex, pokemon, json[raw][name]);
+				if (validSet(format, pokemon, name, set) && !skip(dex, format, pokemon, set)) {
+					sets[pokemon][cleanName(name)] = set;
+					num++;
+				}
+			}
+		}
+		report(format, num, source);
+	}
+	return setsByFormat;
+}
+
+function fixThirdParty(dex: ModdedDex, pokemon: string, set: DeepPartial<PokemonSet>) {
+	set.ability = fixedAbility(dex, pokemon) || set.ability;
+	if (set.ivs) {
+		let iv: StatName;
+		for (iv in set.ivs) {
+			set.ivs[fromShort(iv) || iv] = Number(set.ivs[iv]);
+		}
+	}
+	if (set.evs) {
+		let ev: StatName;
+		for (ev in set.evs) {
+			set.evs[fromShort(ev) || ev] = Number(set.evs[ev]);
+		}
+	}
+	return set;
+}
+
+function fromShort(s: string): StatName | undefined {
+	switch (s) {
+		case 'hp':
+			return 'hp';
+		case 'at':
+			return 'atk';
+		case 'df':
+			return 'def';
+		case 'sa':
+			return 'spa';
+		case 'sd':
+			return 'spd';
+		case 'sp':
+			return 'spe';
+	}
+}
+
+class RetryableError extends Error {
+	constructor(message?: string) {
+		super(message);
+		// restore prototype chain
+		Object.setPrototypeOf(this, new.target.prototype);
+	}
+}
+
 // 20 QPS, 3 retries after ~(40, 200, 1000)ms
 const request = retrying(throttling(fetch, 20, 100), 3, 40);
 
@@ -413,14 +552,6 @@ export function fetch(url: string) {
 		req.on('error', reject);
 		req.end();
 	});
-}
-
-class RetryableError extends Error {
-	constructor(message?: string) {
-		super(message);
-		// restore prototype chain
-		Object.setPrototypeOf(this, new.target.prototype);
-	}
 }
 
 function retrying<I, O>(fn: (args: I) => Promise<O>, retries: number, wait: number): (args: I) => Promise<O> {
