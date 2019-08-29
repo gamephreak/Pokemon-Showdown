@@ -42,16 +42,28 @@ if (deps.length) shell(`npm install --no-save ${deps}`);
 
 if (!missing('source-map-support')) require('source-map-support').install();
 
+global.Chat = {};
+Chat.plural = function (num, plural = 's', singular = '') {
+	if (num && typeof num.length === 'number') {
+		num = num.length;
+	} else if (num && typeof num.size === 'number') {
+		num = num.size;
+	} else {
+		num = Number(num);
+	}
+	return (num !== 1 ? plural : singular);
+};
+
 const importer = require('./importer.js');
 
 const SETS = path.resolve(__dirname, 'sets');
 (async () => {
 	const imports = [];
 	for (let [i, generationData] of (await importer.importAll()).entries()) {
-		fs.writeFileSync(path.resolve(SETS, `gen${i + 1}.json`), JSON.stringify(generationData));
+		fs.writeFileSync(path.resolve(SETS, `gen${i + 1}.json`), JSON.stringify(generationData, null, 2)); // FIXME
 		imports.push(`gen${i + 1}`);
 		for (let format in generationData) {
-			fs.writeFileSync(path.resolve(SETS, `${format}.json`), JSON.stringify(generationData[format]));
+			fs.writeFileSync(path.resolve(SETS, `${format}.json`), JSON.stringify(generationData[format], null, 2)); // FIXME
 			imports.push(format);
 		}
 	}

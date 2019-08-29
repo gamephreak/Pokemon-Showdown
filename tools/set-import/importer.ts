@@ -48,7 +48,7 @@ interface GenerationData {
 // eg. 'gen7balancedhackmons.json'
 interface FormatData {
 	sets: Sets;
-	weights: Weights;
+	weights?: Weights;
 }
 
 type Generation = 1 | 2 | 3 | 4 | 5 | 6 | 7;
@@ -105,43 +105,67 @@ export async function importAll() {
 	return Promise.all(imports);
 }
 
-async function importGen(gen: Generation, index: string) {
-	const sets: Sets = {};
+// FIXME: filter out battle only etc
+function ineligible(id: ID) {
+	const formes = [
+		'pikachu', 'castform', 'genesect', 'basculin', 'magearna',
+		'keldeo', 'mimikyu', 'cherrim', 'arceus', 'sivally', 'vivillon',
+	];
+	const cap = ['swirlpool'];
+	return id.endsWith('totem') || formes.some(f => id.startsWith(f) && id !== f) || cap.includes(id);
+}
 
-	const statisticsByFormat = new Map<Format, smogon.UsageStatistics>();
-	const setsByFormat: { [formatid: string]: PokemonSets } = {};
+async function importGen(gen: Generation, index: string) {
+	const data: GenerationData = {};
+
+	const smogonSetsByFormat: { [formatid: string]: PokemonSets } = {};
+	const thirdPartySetsByFormat: {[source: string]: { [formatid: string]: PokemonSets }} = {};
+
 	const numByFormat: { [formatid: string]: number } = {};
 	const imports = [];
 	const dex = Dex.forFormat(`gen${gen}ou`);
 	for (const id in dex.data.Pokedex) {
 		const g = toGen(dex, id);
-		if (!g || g > gen) continue;
-		imports.push(importSmogonSets(dex.getTemplate(id).name, gen, setsByFormat, numByFormat));
+		if (!g || g > gen || ineligible(id as ID)) continue;
+		imports.push(importSmogonSets(dex.getTemplate(id).name, gen, smogonSetsByFormat, numByFormat));
+	}
+	for (const source in THIRD_PARTY_SOURCES) {
+		thirdPartySetsByFormat[source] = await importThirdPartySets(gen, source, THIRD_PARTY_SOURCES[source]);
 	}
 	await Promise.all(imports);
-	sets['smogon.com/dex'] = setsByFormat;
 
 	for (const {format, gen: g} of FORMATS.values()) {
 		if (g !== gen) continue;
 
+		if (smogonSetsByFormat[format.id] && Object.keys(smogonSetsByFormat[format.id]).length) {
+			data[format.id] = {sets: {}};
+			data[format.id].sets['smogon.com/dex'] = smogonSetsByFormat[format.id];
+			report(format, numByFormat[format.id], 'smogon.com/dex');
+		}
+
+		for (const source in thirdPartySetsByFormat) {
+			if (thirdPartySetsByFormat[source][format.id] && Object.keys(thirdPartySetsByFormat[source][format.id]).length) {
+				data[format.id] = data[format.id] || {sets: {}};
+				data[format.id].sets[source] = thirdPartySetsByFormat[source][format.id];
+			}
+		}
+
 		const u = getStatisticsURL(index, format);
 		try {
-			statisticsByFormat.set(format, smogon.Statistics.parse(await request(u)));
+			const statistics = smogon.Statistics.parse(await request(u));
+			const sets = await importUsageBasedSets(gen, format, statistics);
+			if (Object.keys(sets).length) {
+				data[format.id] = data[format.id] || {sets: {}};
+				data[format.id].sets['smogon.com/stats'] = sets;
+			}
+			data[format.id] = data[format.id] || {sets: {}};
+			data[format.id].weights = getWeightsForFormat(statistics);
 		} catch (err) {
 			error(`${u} = ${err}`);
 		}
-		if (numByFormat[format.id]) report(format, numByFormat[format.id], 'smogon.com/dex');
 	}
 
-	for (const [format, statistics] of statisticsByFormat.entries()) {
-		sets['smogon.com/stats'][format.id] = importUsageBasedSets(gen, format, statistics);
-	}
-
-	for (const source in THIRD_PARTY_SOURCES) {
-		sets[source] = await importThirdPartySets(gen, source, THIRD_PARTY_SOURCES[source]);
-	}
-
-	return {sets, weights: getWeightsByFormat(statisticsByFormat)};
+	return data;
 }
 
 async function importSmogonSets(
@@ -256,14 +280,13 @@ const SMOGON = {
 	vgc19: 'vgc2019ultraseries',
 } as unknown as {[id: string]: ID};
 
-// 3 retries after ~(40, 200, 1000)ms
 const getAnalysis = retrying(async (u: string) => {
 	try {
 		return smogon.Analyses.process(await request(u));
 	} catch (err) {
 		return Promise.reject(new RetryableError(err.message));
 	}
-}, 3, 40);
+}, 3, 50);
 
 async function getAnalysesByFormat(pokemon: string, gen: Generation) {
 	const u = smogon.Analyses.url(pokemon, gen);
@@ -276,16 +299,14 @@ async function getAnalysesByFormat(pokemon: string, gen: Generation) {
 
 		const analysesByFormat = new Map<Format, smogon.Analysis[]>();
 		for (const [tier, analyses] of analysesByTier.entries()) {
-			const f = FORMATS.get(`gen${gen}${SMOGON[tier] || tier}` as ID);
+			const t = toID(tier);
+			const f = FORMATS.get(`gen${gen}${SMOGON[t] || t}` as ID);
 			if (f) analysesByFormat.set(f.format, analyses);
 		}
 
 		return analysesByFormat;
 	} catch (err) {
-		const template = Dex.getTemplate(pokemon);
-		if (!(template.baseSpecies || template.isNonstandard)) {
-			error(`Unable to process analysis: ${u}`);
-		}
+		error(`Unable to process analysis: ${u}`);
 		return undefined;
 	}
 }
@@ -408,39 +429,35 @@ function top(weighted: { [key: string]: number }, n = 1): string | string[] | un
 		.map(x => x[0]);
 }
 
-function getWeightsByFormat(statisticsByFormat: Map<Format, smogon.UsageStatistics>) {
-	const weightsByFormat: { [format: string]: Weights } = {};
-	for (const [format, statistics] of statisticsByFormat.entries()) {
-		const species: { [id: string]: number } = {};
-		const abilities: { [id: string]: number } = {};
-		const items: { [id: string]: number } = {};
-		const moves: { [id: string]: number } = {};
+function getWeightsForFormat(statistics: smogon.UsageStatistics) {
+	const species: { [id: string]: number } = {};
+	const abilities: { [id: string]: number } = {};
+	const items: { [id: string]: number } = {};
+	const moves: { [id: string]: number } = {};
 
-		for (const name in statistics.data) {
-			const stats = statistics.data[name];
-			species[name] = stats.usage;
-			updateWeights(abilities, stats.Abilities, stats.usage);
-			updateWeights(items, stats.Items, stats.usage);
-			updateWeights(moves, stats.Moves, stats.usage, 4);
-		}
-
-		const transform = (obj: { [name: string]: number }) => {
-			const sorted = Object.entries(obj).sort(([, a], [, b]) => b - a);
-			const o: { [id: string]: number } = {};
-			for (const [i, [k, v]] of sorted.entries()) {
-				o[toID(k)] = i + 1;
-			}
-			return o;
-		};
-
-		weightsByFormat[format.id] = {
-			species: transform(species),
-			abilities: transform(abilities),
-			items: transform(items),
-			moves: transform(moves),
-		};
+	for (const name in statistics.data) {
+		const stats = statistics.data[name];
+		species[name] = stats.usage;
+		updateWeights(abilities, stats.Abilities, stats.usage);
+		updateWeights(items, stats.Items, stats.usage);
+		updateWeights(moves, stats.Moves, stats.usage, 4);
 	}
-	return weightsByFormat;
+
+	const transform = (obj: { [name: string]: number }) => {
+		const sorted = Object.entries(obj).sort(([, a], [, b]) => b - a);
+		const o: { [id: string]: number } = {};
+		for (const [i, [k, v]] of sorted.entries()) {
+			o[toID(k)] = i + 1;
+		}
+		return o;
+	};
+
+	return {
+		species: transform(species),
+		abilities: transform(abilities),
+		items: transform(items),
+		moves: transform(moves),
+	};
 }
 
 function updateWeights(
@@ -483,7 +500,8 @@ async function importThirdPartySets(
 		let num = 0;
 		for (const mon in json) {
 			const pokemon = dex.getTemplate(mon).name;
-			if (toGen(dex, pokemon) !== gen) {
+			const g = toGen(dex, pokemon);
+			if (!g || g > gen) {
 				error(`Pokemon ${pokemon} does not exist in generation ${gen}`);
 				continue;
 			}
@@ -557,8 +575,7 @@ class RetryableError extends Error {
 	}
 }
 
-// 20 QPS, 3 retries after ~(40, 200, 1000)ms
-const request = retrying(throttling(fetch, 20, 100), 3, 40);
+const request = retrying(throttling(fetch, 1, 50), 5, 20);
 
 export function fetch(u: string) {
 	const client = u.startsWith('http:') ? http : https;
@@ -584,7 +601,7 @@ export function fetch(u: string) {
 function retrying<I, O>(fn: (args: I) => Promise<O>, retries: number, wait: number): (args: I) => Promise<O> {
 	const retry = async (args: I, attempt = 0): Promise<O> => {
 		try {
-			return fn(args);
+			return await fn(args);
 		} catch (err) {
 			if (err instanceof RetryableError) {
 				attempt++;

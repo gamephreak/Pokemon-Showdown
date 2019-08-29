@@ -47,7 +47,7 @@ export interface GenerationData {
 }
 export interface FormatData {
 	sets: Sets;
-	weights: Weights;
+	weights?: Weights;
 }
 declare type Generation = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 export declare function forGen(gen: Generation): Promise<GenerationData> | undefined;
