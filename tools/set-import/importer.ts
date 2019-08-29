@@ -1,6 +1,7 @@
 import * as http from 'http';
 import * as https from 'https';
 import * as util from 'util';
+import * as url from 'url';
 
 // tslint:disable: no-implicit-dependencies
 // @ts-ignore - index.js installs these for us
@@ -36,6 +37,7 @@ interface Weights  {
 
 interface IncomingMessage extends NodeJS.ReadableStream {
 	statusCode: number;
+	headers: {location?: string};
 }
 
 // eg. 'gen1.json'
@@ -122,11 +124,11 @@ async function importGen(gen: Generation, index: string) {
 	for (const {format, gen: g} of FORMATS.values()) {
 		if (g !== gen) continue;
 
-		const url = getStatisticsURL(index, format);
+		const u = getStatisticsURL(index, format);
 		try {
-			statisticsByFormat.set(format, smogon.Statistics.parse(await request(url)));
+			statisticsByFormat.set(format, smogon.Statistics.parse(await request(u)));
 		} catch (err) {
-			error(`${url} = ${err}`);
+			error(`${u} = ${err}`);
 		}
 		if (numByFormat[format.id]) report(format, numByFormat[format.id], 'smogon.com/dex');
 	}
@@ -213,7 +215,8 @@ function fixedAbility(dex: ModdedDex, pokemon: string) {
 }
 
 function validSet(format: Format, pokemon: string, name: string, set: DeepPartial<PokemonSet>) {
-	const invalid = VALIDATORS.get(format.id)!.validateSet(set as PokemonSet, {});
+	const copy = Object.assign({species: pokemon}, set) as PokemonSet;
+	const invalid = VALIDATORS.get(format.id)!.validateSet(copy, {});
 	if (!invalid) return true;
 	const title = color(`${format.name}: ${pokemon} (${name})'`, 91);
 	const details = `${JSON.stringify(set)} = ${invalid.join(', ')}`;
@@ -254,30 +257,38 @@ const SMOGON = {
 } as unknown as {[id: string]: ID};
 
 // 3 retries after ~(40, 200, 1000)ms
-const getAnalysis = retrying(async (url: string) => {
+const getAnalysis = retrying(async (u: string) => {
 	try {
-		return await smogon.Analyses.process(await request(url));
+		return smogon.Analyses.process(await request(u));
 	} catch (err) {
-		throw new RetryableError(err.message);
+		return Promise.reject(new RetryableError(err.message));
 	}
 }, 3, 40);
 
 async function getAnalysesByFormat(pokemon: string, gen: Generation) {
 	const id = toID(pokemon);
-	if (id.endsWith('totem')) return undefined;
-	const url = smogon.Analyses.url(pokemon, gen);
-	const analysesByTier = await getAnalysis(url);
-	if (!analysesByTier) {
-		error(`Unable to process analysis: ${url}`);
+	const u = smogon.Analyses.url(pokemon, gen);
+	try {
+		const analysesByTier = await getAnalysis(u);
+		if (!analysesByTier) {
+			error(`Unable to process analysis: ${u}`);
+			return undefined;
+		}
+
+		const analysesByFormat = new Map<Format, smogon.Analysis[]>();
+		for (const [tier, analyses] of analysesByTier.entries()) {
+			const f = FORMATS.get(`gen${gen}${SMOGON[tier] || tier}` as ID);
+			if (f) analysesByFormat.set(f.format, analyses);
+		}
+
+		return analysesByFormat;
+	} catch (err) {
+		const template = Dex.getTemplate(pokemon);
+		if (!(template.baseSpecies || template.isNonstandard)) {
+			error(`Unable to process analysis: ${u}`);
+		}
 		return undefined;
 	}
-
-	const analysesByFormat = new Map<Format, smogon.Analysis[]>();
-	for (const [tier, analyses] of analysesByTier.entries()) {
-		const f = FORMATS.get(`gen${gen}${SMOGON[tier] || tier}` as ID);
-		if (f) analysesByFormat.set(f.format, analyses);
-	}
-	return analysesByFormat;
 }
 
 function getLevel(format: Format, level = 0) {
@@ -551,14 +562,16 @@ class RetryableError extends Error {
 // 20 QPS, 3 retries after ~(40, 200, 1000)ms
 const request = retrying(throttling(fetch, 20, 100), 3, 40);
 
-export function fetch(url: string) {
-	const client = url.startsWith('http:') ? http : https;
+export function fetch(u: string) {
+	const client = u.startsWith('http:') ? http : https;
 	return new Promise<string>((resolve, reject) => {
 		// @ts-ignore ???
-		const req = client.get(url, (res: IncomingMessage) => {
+		const req = client.get(u, async (res: IncomingMessage) => {
 			if (res.statusCode !== 200) {
 				if (res.statusCode >= 500 && res.statusCode < 600) {
 					return reject(new RetryableError(`HTTP ${res.statusCode}`));
+				} else if (res.statusCode >= 300 && res.statusCode <= 400 && res.headers.location) {
+					resolve(fetch(url.resolve(u, res.headers.location)));
 				} else {
 					return reject(new Error(`HTTP ${res.statusCode}`));
 				}
@@ -577,16 +590,16 @@ function retrying<I, O>(fn: (args: I) => Promise<O>, retries: number, wait: numb
 		} catch (err) {
 			if (err instanceof RetryableError) {
 				attempt++;
-				if (attempt > retries) throw err;
+				if (attempt > retries) return Promise.reject(err);
 				const timeout = Math.round(attempt * wait * (1 + Math.random() / 2));
 				warn(`Retrying ${args} in ${timeout}ms (${attempt}):`, err);
 				return new Promise(resolve => {
-					setTimeout(async () => {
-						resolve(await retry(args, attempt++));
+					setTimeout(() => {
+						resolve(retry(args, attempt++));
 					}, timeout);
 				});
 			} else {
-				throw err;
+				return Promise.reject(err);
 			}
 		}
 	};
@@ -602,7 +615,7 @@ function throttling<I, O>(fn: (args: I) => Promise<O>, limit: number, interval: 
 		let timeout: NodeJS.Timeout;
 		return new Promise<O>((resolve, reject) => {
 			const execute = async () => {
-				resolve(await fn(args));
+				resolve(fn(args));
 				queue.delete(timeout);
 			};
 
