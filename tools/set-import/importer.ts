@@ -1,7 +1,7 @@
 import * as http from 'http';
 import * as https from 'https';
-import * as util from 'util';
 import * as url from 'url';
+import * as util from 'util';
 
 // tslint:disable: no-implicit-dependencies
 // @ts-ignore - index.js installs these for us
@@ -266,7 +266,6 @@ const getAnalysis = retrying(async (u: string) => {
 }, 3, 40);
 
 async function getAnalysesByFormat(pokemon: string, gen: Generation) {
-	const id = toID(pokemon);
 	const u = smogon.Analyses.url(pokemon, gen);
 	try {
 		const analysesByTier = await getAnalysis(u);
@@ -337,10 +336,9 @@ const STATISTICS: {[formatid: string]: string} = {
 };
 
 export function getStatisticsURL(index: string, format: Format) {
-	if (STATISTICS[format.id] && !index.includes(format.id)) {
-		return `${smogon.Statistics.URL}${STATISTICS[format.id]}/chaos/${format.id}-1500.json`;
-	}
-	return smogon.Statistics.url(smogon.Statistics.latest(index), format.id);
+	return (STATISTICS[format.id] && !index.includes(format.id)) ?
+		`${smogon.Statistics.URL}${STATISTICS[format.id]}/chaos/${format.id}-1500.json` :
+		smogon.Statistics.url(smogon.Statistics.latest(index), format.id);
 }
 
 // TODO: Use bigram matrix + bucketed spreads logic for more realistic sets
@@ -566,7 +564,7 @@ export function fetch(u: string) {
 	const client = u.startsWith('http:') ? http : https;
 	return new Promise<string>((resolve, reject) => {
 		// @ts-ignore ???
-		const req = client.get(u, async (res: IncomingMessage) => {
+		const req = client.get(u, (res: IncomingMessage) => {
 			if (res.statusCode !== 200) {
 				if (res.statusCode >= 500 && res.statusCode < 600) {
 					return reject(new RetryableError(`HTTP ${res.statusCode}`));
