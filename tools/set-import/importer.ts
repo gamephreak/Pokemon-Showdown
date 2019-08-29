@@ -75,7 +75,6 @@ const THIRD_PARTY_SOURCES: {[source: string]: {url: string, files: {[formatid: s
 	'damagecalc.trainertower.com': {
 		url: 'https://raw.githubusercontent.com/jake-white/VGC-Damage-Calculator/gh-pages/script_res/',
 		files: {
-			gen6battlespotsingles: 'setdex_globalLink.js',
 			gen6vgc2016: 'setdex_nuggetBridge.js',
 			gen7vgc2017: 'setdex_tt2017.js',
 			gen7vgc2018: 'setdex_tt2018.js',
@@ -114,8 +113,8 @@ async function importGen(gen: Generation, index: string) {
 	const numByFormat: { [formatid: string]: number } = {};
 	const imports = [];
 	const dex = Dex.forFormat(`gen${gen}ou`);
-	for (const id in dex.data.Pokedex) { // TODO: meowstic-m
-		if (!eligible(dex, gen, id as ID)) continue;
+	for (const id in dex.data.Pokedex) {
+		if (!eligible(dex, id as ID)) continue;
 		imports.push(importSmogonSets(dex.getTemplate(id).name, gen, smogonSetsByFormat, numByFormat));
 	}
 	for (const source in THIRD_PARTY_SOURCES) {
@@ -159,16 +158,18 @@ async function importGen(gen: Generation, index: string) {
 	return data;
 }
 
-function eligible(dex: ModdedDex, gen: Generation, id: ID) {
-	const g = toGen(dex, id);
-	if (!g || g > gen) return false;
+function eligible(dex: ModdedDex, id: ID) {
+	const gen = toGen(dex, id);
+	if (!gen || gen > dex.gen) return false;
 	const template = dex.getTemplate(id);
 	if (['Mega', 'Primal', 'Ultra'].includes(template.forme)) return false;
 	if (template.battleOnly) return false;
-	// TODO: just any CAL NFE?
-	const cap = ['swirlpool', 'electrelk', 'smoguana', 'smogecko', 'coribalis', 'fawnifer']; // TODO meowstic
-	const formes = ['pikachu', 'genesect', 'basculin', 'magearna', 'keldeo',  'arceus', 'silvally', 'vivillon'];
-	return !id.endsWith('totem') && !cap.includes(id) && !formes.some(f => id.startsWith(f) && id !== f);
+	const capNFE = template.isNonstandard === 'CAP' && template.nfe;
+	const formes = [
+		'pichu', 'pikachu', 'genesect', 'basculin', 'magearna',
+		'keldeo',  'arceus', 'silvally', 'vivillon',
+	];
+	return !id.endsWith('totem') && !capNFE && !formes.some(f => id.startsWith(f) && id !== f);
 }
 
 // TODO: Fix dex data such that CAP mons have a correct gen set
@@ -183,10 +184,6 @@ function toGen(dex: ModdedDex, name: string): Generation | undefined {
 	if (n > 251) return 3;
 	if (n > 151) return 2;
 	if (n > 0) return 1;
-}
-
-function fillStatTable(stats?: Partial<StatsTable>, val = 0): StatsTable {
-	return Object.assign({hp: val, atk: val, def: val, spe: val, spa: val, spd: val}, stats);
 }
 
 async function importSmogonSets(
@@ -215,7 +212,7 @@ async function importSmogonSets(
 			for (const moveset of analysis.movesets) {
 				const set = movesetToPokemonSet(dex, format, pokemon, moveset);
 				const name = cleanName(moveset.name);
-				if (validSet(gen, format, pokemon, name, set) && !skip(dex, format, pokemon, set)) {
+				if (validSet('smogon.com/dex', dex, format, pokemon, name, set) && !skip(dex, format, pokemon, set)) {
 					sets[name] = set;
 					numByFormat[format.id] = (numByFormat[format.id] || 0) + 1;
 				}
@@ -233,7 +230,7 @@ function movesetToPokemonSet(dex: ModdedDex, format: Format, pokemon: string, se
 	return {
 		level: level === 100 ? undefined : level,
 		moves: set.moveslots.map(ms => ms[0]),
-		ability: fixedAbility(dex, pokemon) || set.abilities[0],
+		ability: fixedAbility(dex, pokemon, set.abilities[0]),
 		item: set.items[0] === 'No Item' ? undefined : set.items[0],
 		nature: set.natures[0],
 		ivs: toStatsTable(set.ivconfigs[0], 31),
@@ -253,14 +250,17 @@ function toStatsTable(stats?: StatsTable, elide = 0) {
 	return s;
 }
 
-function fixedAbility(dex: ModdedDex, pokemon: string) {
+function fixedAbility(dex: ModdedDex, pokemon: string, ability?: string) {
+	if (dex.gen <= 2) return undefined;
 	const template = dex.getTemplate(pokemon);
-	if (!['Mega', 'Primal', 'Ultra'].includes(template.forme)) return undefined;
+	if (ability && !['Mega', 'Primal', 'Ultra'].includes(template.forme)) return ability;
 	return template.abilities[0];
 }
 
-function validSet(gen: Generation, format: Format, pokemon: string, name: string, set: DeepPartial<PokemonSet>) {
-	const pset = toPokemonSet(gen, pokemon, set);
+function validSet(
+	source: string, dex: ModdedDex, format: Format, pokemon: string, name: string, set: DeepPartial<PokemonSet>
+) {
+	const pset = toPokemonSet(dex, pokemon, set);
 	let invalid = VALIDATORS.get(format.id)!.validateSet(pset, {});
 	if (!invalid) return true;
 	// Correct invalidations where set is required to be shiny due to an event
@@ -272,18 +272,55 @@ function validSet(gen: Generation, format: Format, pokemon: string, name: string
 	}
 	const title = color(`${format.name}: ${pokemon} (${name})'`, 91);
 	const details = `${JSON.stringify(set)} = ${invalid.join(', ')}`;
-	console.error(`Invalid set ${title}: ${color(details, 90)}`);
+	console.error(`${color(source, 94)} Invalid set ${title}: ${color(details, 90)}`);
 	return false;
 }
 
-function toPokemonSet(gen: Generation, pokemon: string, set: DeepPartial<PokemonSet>): PokemonSet {
-	const copy = Object.assign({species: pokemon}, set) as PokemonSet;
-	copy.ivs = fillStatTable(copy.ivs, 31);
-	if (gen === 7) {
-		const hp = copy.moves.find(m => m.startsWith('Hidden Power'));
-		if (hp) copy.hpType = hp.slice(13);
+function toPokemonSet(dex: ModdedDex, pokemon: string, set: DeepPartial<PokemonSet>): PokemonSet {
+	// To simplify things, during validation we mutate the input set to correct for HP mismatches
+	const hp = set.moves && set.moves.find(m => m.startsWith('Hidden Power'));
+	let fill = dex.gen === 2 ? 30 : 31;
+	if (hp) {
+		const type = hp.slice(13);
+		if (type && dex.getHiddenPower(fillStats(set.ivs, fill)).type !== type) {
+			if (!set.ivs || (dex.gen === 7 && (!set.level || set.level === 100))) {
+				set.hpType = type;
+				fill = 31;
+			} else if (dex.gen === 2) {
+				const dvs = Object.assign({}, dex.getType(type).HPdvs);
+				let stat: StatName;
+				for (stat in dvs) {
+					dvs[stat]! *= 2;
+				}
+				set.ivs = Object.assign({}, dvs, set.ivs);
+				set.ivs.hp = expectedHP(set.ivs);
+			} else {
+				set.ivs = Object.assign({}, dex.getType(type).HPivs, set.ivs);
+			}
+		}
 	}
+
+	const copy = Object.assign({species: pokemon}, set) as PokemonSet;
+	copy.ivs = fillStats(set.ivs, fill);
+	// The validator expects us to have at least 1 EV set to prove it is intentional
+	if (!set.evs && dex.gen >= 3) set.evs = {spe: 1};
+	copy.evs = fillStats(set.evs, dex.gen <= 2 ? 252 : 0);
+	// The validator wants an ability even when Gen < 3
+	copy.ability = copy.ability || 'None';
 	return copy;
+}
+
+function expectedHP(ivs: Partial<StatsTable>) {
+	ivs = fillStats(ivs, 31);
+	const atkDV = Math.floor(ivs.atk! / 2);
+	const defDV = Math.floor(ivs.def! / 2);
+	const speDV = Math.floor(ivs.spe! / 2);
+	const spcDV = Math.floor(ivs.spa! / 2);
+	return 2 * ((atkDV % 2) * 8 + (defDV % 2) * 4 + (speDV % 2) * 2 + (spcDV % 2));
+}
+
+function fillStats(stats?: Partial<StatsTable>, fill = 0) {
+	return TeamValidator.fillStats(stats || null, fill);
 }
 
 function skip(dex: ModdedDex, format: Format, pokemon: string, set: DeepPartial<PokemonSet>) {
@@ -332,11 +369,11 @@ const getAnalysis = retrying(async (u: string) => {
 }, 3, 50);
 
 async function getAnalysesByFormat(pokemon: string, gen: Generation) {
-	const u = smogon.Analyses.url(pokemon, gen);
+	const u = smogon.Analyses.url(pokemon === 'meowstic' ? 'meowstic-m' : pokemon, gen);
 	try {
 		const analysesByTier = await getAnalysis(u);
 		if (!analysesByTier) {
-			error(`Unable to process analysis: ${u}`);
+			error(`Unable to process analysis for ${pokemon} in generation ${gen}`);
 			return undefined;
 		}
 
@@ -349,7 +386,7 @@ async function getAnalysesByFormat(pokemon: string, gen: Generation) {
 
 		return analysesByFormat;
 	} catch (err) {
-		error(`Unable to process analysis: ${u}`);
+		error(`Unable to process analysis for ${pokemon} in generation ${gen}`);
 		return undefined;
 	}
 }
@@ -423,13 +460,13 @@ function importUsageBasedSets(gen: Generation, format: Format, statistics: smogo
 			}
 			if (gen >= 3) {
 				const id = top(stats.Abilities) as string;
-				set.ability = fixedAbility(dex, pokemon) || dex.getAbility(id).name;
+				set.ability = fixedAbility(dex, pokemon, dex.getAbility(id).name);
 				const { nature, evs } = fromSpread(top(stats.Spreads) as string);
 				set.nature = nature;
 				if (format.id !== 'gen7letsgoou') set.evs = evs;
 			}
 			const name = 'Showdown Usage';
-			if (validSet(gen, format, pokemon, name, set) && !skip(dex, format, pokemon, set)) {
+			if (validSet('smogon.com/stats', dex, format, pokemon, name, set) && !skip(dex, format, pokemon, set)) {
 				sets[pokemon] = {};
 				sets[pokemon][name] = set;
 				num++;
@@ -551,7 +588,7 @@ async function importThirdPartySets(
 			sets[pokemon] = sets[pokemon] || {};
 			for (const name in json[mon]) {
 				const set = fixThirdParty(dex, pokemon, json[mon][name]);
-				if (validSet(gen, format, pokemon, name, set) && !skip(dex, format, pokemon, set)) {
+				if (validSet(source, dex, format, pokemon, name, set) && !skip(dex, format, pokemon, set)) {
 					sets[pokemon][cleanName(name)] = set;
 					num++;
 				}
@@ -563,7 +600,7 @@ async function importThirdPartySets(
 }
 
 function fixThirdParty(dex: ModdedDex, pokemon: string, set: DeepPartial<PokemonSet>) {
-	set.ability = fixedAbility(dex, pokemon) || set.ability;
+	set.ability = fixedAbility(dex, pokemon, set.ability);
 	if (set.ivs) {
 		const ivs: Partial<StatsTable> = {};
 		let iv: StatName;
@@ -611,8 +648,8 @@ function likelyDuplicate(a: DeepPartial<PokemonSet>, b: DeepPartial<PokemonSet>)
 	if (amoves.length !== bmoves.length) return false;
 	if (amoves.some(m => !bmoves.includes(m))) return false;
 
-	if (JSON.stringify(fillStatTable(a.ivs, 31)) !== JSON.stringify(fillStatTable(b.ivs, 31))) return false;
-	if (JSON.stringify(fillStatTable(a.evs)) !== JSON.stringify(fillStatTable(b.evs))) return false;
+	if (JSON.stringify(fillStats(a.ivs, 31)) !== JSON.stringify(fillStats(b.ivs, 31))) return false;
+	if (JSON.stringify(fillStats(a.evs)) !== JSON.stringify(fillStats(b.evs))) return false;
 
 	return true;
 }

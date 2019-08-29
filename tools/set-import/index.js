@@ -40,8 +40,6 @@ if (missing('smogon')) deps.push('smogon');
 if (missing('json5')) deps.push('json5');
 if (deps.length) shell(`npm install --no-save ${deps}`);
 
-if (!missing('source-map-support')) require('source-map-support').install();
-
 global.Chat = {};
 Chat.plural = function (num, plural = 's', singular = '') {
 	if (num && typeof num.length === 'number') {
