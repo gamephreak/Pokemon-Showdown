@@ -409,46 +409,48 @@ function getLevel(format: Format, level = 0) {
 	return level > maxForcedLevel ? maxForcedLevel : level;
 }
 
-// Fallback URLs for past formats that are most likely not present in current usage statistics
-const STATISTICS: {[formatid: string]: string} = {
-	gen1uu: '2017-12',
-	gen2uu: '2016-08',
-	gen2nu: '2018-11',
-	gen3uu: '2016-11',
-	gen3nu: '2016-09',
-	gen4nu: '2016-10',
-	gen3ubers: '2018-09',
-	gen4ubers: '2019-03',
-	gen4uu: '2019-04',
-	gen4lc: '2018-02',
-	gen4doublesou: '2018-01',
-	gen4anythinggoes: '2017-04',
-	gen5ubers: '2018-11',
-	gen5uu: '2019-04',
-	gen5ru: '2018-01',
-	gen5nu: '2017-11',
-	gen5lc: '2018-05',
-	gen5doublesou: '2018-12',
-	gen51v1: '2019-06',
-	gen5monotype: '2018-10',
-	gen6ubers: '2018-12',
-	gen6uu: '2019-06',
-	gen6ru: '2018-01',
-	gen6nu: '2018-06',
-	gen6pu: '2017-11',
-	gen6lc: '2017-11',
-	gen6cap: '2018-01',
-	gen6doublesou: '2017-12',
-	gen6battlespotsingles: '2018-03',
-	gen6battlespotdoubles: '2018-01',
-	gen6anythinggoes: '2018-03',
-	gen61v1: '2018-10',
-	gen6monotype: '2018-01',
+// Fallback information for past formats that are most likely not present in current usage statistics
+const STATISTICS: {[formatid: string]: [string, number]} = {
+	gen1ubers: ['2019-06', 1162],
+	gen1uu: ['2017-12', 710],
+	gen2ubers: ['2019-07', 389],
+	gen2uu: ['2016-08', 1120],
+	gen2nu: ['2018-11', 444],
+	gen3ubers: ['2018-08', 960],
+	gen3uu: ['2016-11', 562],
+	gen3nu: ['2016-09', 1227],
+	gen4ubers: ['2018-09', 866],
+	gen4uu: ['2019-03', 554],
+	gen4nu: ['2016-10', 515],
+	gen4lc: ['2017-08', 45],
+	gen4doublesou: ['2017-10', 61],
+	gen4anythinggoes: ['2017-03', 442],
+	gen5ubers: ['2016-03', 1666],
+	gen5uu: ['2018-04', 232],
+	gen5ru: ['2018-01', 49],
+	gen5nu: ['2017-05', 43],
+	gen5lc: ['2018-05',  37],
+	gen5doublesou: ['2016-12', 166],
+	gen51v1: ['2019-05', 905],
+	gen5monotype: ['2018-10', 525],
+	gen6ubers: ['2018-11', 2300],
+	gen6uu: ['2017-09', 563],
+	gen6ru: ['2017-08', 38],
+	gen6nu: ['2017-07', 86],
+	gen6pu: ['2017-07', 187],
+	gen6lc: ['2017-07', 33],
+	gen6cap: ['2018-01', 0],
+	gen6doublesou: ['2017-08', 829],
+	gen6battlespotsingles: ['2017-10', 78],
+	gen6battlespotdoubles: ['2017-07', 40],
+	gen6anythinggoes: ['2017-11', 4274],
+	gen61v1: ['2018-09', 1053],
+	gen6monotype: ['2018-01', 1],
 };
 
 export function getStatisticsURL(index: string, format: Format) {
 	return (STATISTICS[format.id] && !index.includes(format.id)) ?
-		`${smogon.Statistics.URL}${STATISTICS[format.id]}/chaos/${format.id}-1500.json` :
+		`${smogon.Statistics.URL}${STATISTICS[format.id][0]}/chaos/${format.id}-1500.json` :
 		smogon.Statistics.url(smogon.Statistics.latest(index), format.id);
 }
 
@@ -489,6 +491,11 @@ function importUsageBasedSets(gen: Generation, format: Format, statistics: smogo
 }
 
 function getUsageThreshold(format: Format) {
+	const unpopular = STATISTICS[format.id];
+	if (unpopular) {
+		if (unpopular[1] < 100) return Infinity;
+		if (unpopular[1] < 400) return 0.05;
+	}
 	return format.id.match(/uber|anythinggoes|doublesou/) ? 0.03 : 0.01;
 }
 
