@@ -165,22 +165,30 @@ function eligible(dex: ModdedDex, id: ID) {
 
 	const template = dex.getTemplate(id);
 	if (['Mega', 'Primal', 'Ultra'].some(f => template.forme.startsWith(f))) return true;
-	if (template.battleOnly) return false;
+
+	// Species with formes distinct enough to merit inclusion
+	const unique = ['darmanitan', 'meloetta', 'greninja', 'zygarde'];
+	// Too similar to their base forme/species to matter
+	const similar = ['pichu', 'pikachu', 'genesect', 'basculin', 'magearna', 'keldeo',  'vivillon'];
+
+	if (template.battleOnly && !unique.some(f => id.startsWith(f))) return false;
 
 	// Most of these don't have analyses
 	const capNFE = template.isNonstandard === 'CAP' && template.nfe;
-	// Too similar to their base forme/species to matter
-	const formes = ['pichu', 'pikachu', 'genesect', 'basculin', 'magearna', 'keldeo',  'vivillon'];
-	return !id.endsWith('totem') && !capNFE && !formes.some(f => id.startsWith(f) && id !== f);
+
+	return !id.endsWith('totem') && !capNFE && !similar.some(f => id.startsWith(f) && id !== f);
 }
 
 // TODO: Fix dex data such that CAP mons have a correct gen set
 function toGen(dex: ModdedDex, name: string): Generation | undefined {
 	const pokemon = dex.getTemplate(name);
-	if (!pokemon.exists || (pokemon.isNonstandard && pokemon.isNonstandard !== 'CAP')) return undefined;
+	if (!pokemon.exists || (pokemon.isNonstandard && !['CAP', 'LGPE'].includes(pokemon.isNonstandard))) {
+		return undefined;
+	}
+
 	const n = pokemon.num;
-	if (n > 721 || (n <= -23 && n >= -27) || (n <= -120 && n >= -126)) return 7;
-	if (n > 649 || (n <= -12 && n >= -17) || (n <= -106 && n >= -110)) return 6;
+	if (n > 721 || (n <= -23 && n >= -28) || (n <= -120 && n >= -126)) return 7;
+	if (n > 649 || (n <= -8 && n >= -22) || (n <= -106 && n >= -110)) return 6;
 	if (n > 493 || (n <= -12 && n >= -17) || (n <= -111 && n >= -115)) return 5;
 	if (n > 386 || (n <= -1 && n >= -11) || (n <= -101 && n >= -104) || (n <= -116 && n >= -119)) return 4;
 	if (n > 251) return 3;
