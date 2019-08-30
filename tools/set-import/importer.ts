@@ -164,6 +164,7 @@ function eligible(dex: ModdedDex, id: ID) {
 	if (!gen || gen > dex.gen) return false;
 
 	const template = dex.getTemplate(id);
+	if (['Mega', 'Primal', 'Ultra'].includes(template.forme)) return true;
 	if (template.battleOnly) return false;
 
 	// Most of these don't have analyses
@@ -203,18 +204,14 @@ async function importSmogonSets(
 			setsForPokemon = {};
 			setsByFormat[format.id] = setsForPokemon;
 		}
-		let sets = setsForPokemon[pokemon];
-		if (!sets) {
-			sets = {};
-			setsForPokemon[pokemon] = sets;
-		}
 
 		for (const analysis of analyses) {
 			for (const moveset of analysis.movesets) {
 				const set = movesetToPokemonSet(dex, format, pokemon, moveset);
 				const name = cleanName(moveset.name);
 				if (validSet('smogon.com/dex', dex, format, pokemon, name, set) && !skip(dex, format, pokemon, set)) {
-					sets[name] = set;
+					setsForPokemon[pokemon] = setsForPokemon[pokemon] || {};
+					setsForPokemon[pokemon][name] = set;
 					numByFormat[format.id] = (numByFormat[format.id] || 0) + 1;
 				}
 			}
@@ -271,6 +268,8 @@ function validSet(
 		invalid = VALIDATORS.get(format.id)!.validateSet(pset, {});
 		if (!invalid) return true;
 	}
+	// Allow Gen 4 Arceus sets because they're occasionally useful for tournaments
+	if (format.id === 'gen4ubers' && invalid.includes(`${pokemon} is banned.`)) return true;
 	const title = `${format.name}: ${pokemon} (${name})'`;
 	const details = `${JSON.stringify(set)} = ${invalid.join(', ')}`;
 	// console.error(`${color(source, 94)} Invalid set ${color(title, 91)}: ${color(details, 90)}`);
@@ -607,10 +606,10 @@ async function importThirdPartySets(
 			const pokemon = dex.getTemplate(mon).name;
 			if (!eligible(dex, toID(pokemon))) continue;
 
-			sets[pokemon] = sets[pokemon] || {};
 			for (const name in json[mon]) {
 				const set = fixThirdParty(dex, pokemon, json[mon][name]);
 				if (validSet(source, dex, format, pokemon, name, set) && !skip(dex, format, pokemon, set)) {
+					sets[pokemon] = sets[pokemon] || {};
 					sets[pokemon][cleanName(name)] = set;
 					num++;
 				}
