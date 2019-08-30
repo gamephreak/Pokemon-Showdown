@@ -101,10 +101,19 @@ const SETS = path.resolve(__dirname, 'sets');
 
 	const indexjs = [
 		'"use strict";',
-		'const JSON = {',
-		// TODO: check if global require exists
-		imports.map(n => `	"${n}": import("./${n}.json").catch(err => require("./${n}.json"))`).join(',\n'),
-		'};',
+		'var JSON;',
+		'if (typeof window === "undefined") {',
+		'	JSON = {',
+		imports.map(n => `		"${n}": load("./${n}.json")`).join(',\n'),
+		'	};',
+		'} else {',
+		'	JSON = {',
+		imports.map(n => `		"${n}": import("./${n}.json")`).join(',\n'),
+		'	};',
+		'}',
+		'function load(path) {',
+		'	return Promise.resolve(require(path));',
+		'}',
 		'function forGen(gen) {',
 		'	return JSON[`gen${gen}`];',
 		'}',
