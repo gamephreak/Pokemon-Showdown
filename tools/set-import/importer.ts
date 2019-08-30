@@ -150,7 +150,7 @@ async function importGen(gen: Generation, index: string) {
 				data[format.id].sets['smogon.com/stats'] = sets;
 			}
 			data[format.id] = data[format.id] || {sets: {}};
-			data[format.id].weights = getWeightsForFormat(statistics);
+			data[format.id].weights = getWeightsForFormat(format, statistics);
 		} catch (err) {
 			error(`${u} = ${err}`);
 		}
@@ -533,7 +533,7 @@ function top(weighted: {[key: string]: number}, n = 1): string | string[] | unde
 		.map(x => x[0]);
 }
 
-function getWeightsForFormat(statistics: smogon.UsageStatistics) {
+function getWeightsForFormat(format: Format, statistics: smogon.UsageStatistics) {
 	const species: {[id: string]: number} = {};
 	const abilities: {[id: string]: number} = {};
 	const items: {[id: string]: number} = {};
@@ -547,12 +547,15 @@ function getWeightsForFormat(statistics: smogon.UsageStatistics) {
 		updateWeights(moves, stats.Moves, stats.usage, 4);
 	}
 
+	const size = (format.teamLength && format.teamLength.battle) || 6;
 	const transform = (obj: {[name: string]: number}) => {
 		const sorted = Object.entries(obj).sort(([, a], [, b]) => b - a);
 		const o: {[id: string]: number} = {};
 		let num = 1;
 		for (const [k, v] of sorted) {
-			if (k && k !== 'nothing') o[toID(k)] = num++;
+			const w = v / size * 100;
+			if (w < 0.1) break;
+			if (k && k !== 'nothing') o[toID(k)] = Math.round(w * 100) / 100;
 		}
 		return o;
 	};
