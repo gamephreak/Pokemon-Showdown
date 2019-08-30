@@ -1,8 +1,8 @@
-declare type StatName = 'hp' | 'atk' | 'def' | 'spa' | 'spd' | 'spe';
-declare type StatsTable<T> = {
+export declare type StatName = 'hp' | 'atk' | 'def' | 'spa' | 'spd' | 'spe';
+export declare type StatsTable<T> = {
 	[stat in StatName]: T;
 };
-interface PokemonSet {
+export interface PokemonSet {
 	name: string;
 	species: string;
 	item: string;
@@ -18,7 +18,7 @@ interface PokemonSet {
 	pokeball?: string;
 	hpType?: string;
 }
-declare type DeepPartial<T> = {
+export declare type DeepPartial<T> = {
 	[P in keyof T]?: T[P] extends Array<infer I> ? Array<DeepPartial<I>> : DeepPartial<T[P]>;
 };
 export interface Sets {
@@ -49,7 +49,7 @@ export interface FormatData {
 	sets: Sets;
 	weights?: Weights;
 }
-declare type Generation = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+export declare type Generation = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 export declare function forGen(gen: Generation): Promise<GenerationData> | undefined;
 export declare function forFormat(format: string): Promise<FormatData> | undefined;
 export {};

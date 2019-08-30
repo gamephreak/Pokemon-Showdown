@@ -102,13 +102,14 @@ const SETS = path.resolve(__dirname, 'sets');
 	const indexjs = [
 		'"use strict";',
 		'const JSON = {',
-		imports.map(n => `	"${n}": import("${n}.json"),`).join('\n'),
-		'}',
-		'function forGen(gen: Generation) {',
+		// TODO: check if global require exists
+		imports.map(n => `	"${n}": import("./${n}.json").catch(err => require("./${n}.json"))`).join(',\n'),
+		'};',
+		'function forGen(gen) {',
 		'	return JSON[`gen${gen}`];',
 		'}',
 		'exports.forGen = forGen;',
-		'function forFormat(format: string) {',
+		'function forFormat(format) {',
 		'	return JSON[format];',
 		'}',
 		'exports.forFormat = forFormat;',

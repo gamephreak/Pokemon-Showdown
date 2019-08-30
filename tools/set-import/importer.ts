@@ -58,8 +58,8 @@ type Generation = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 export const TIERS = new Set([
 	'ubers', 'ou', 'uu', 'ru', 'nu', 'pu', 'zu', 'lc', 'cap',
 	'doublesou', 'battlespotsingles', 'battlespotdoubles',
-	'vgc16', 'vgc17', 'vgc18', 'vgc19ultraseries', 'letsgoou',
-	'anythinggoes', 'balancedhackmons', '1v1', 'monotype',
+	'vgc2016', 'vgc2017', 'vgc2018', 'vgc2019ultraseries', '1v1',
+	'anythinggoes', 'balancedhackmons', 'letsgoou', 'monotype',
 ]);
 const FORMATS = new Map<ID, {gen: Generation, format: Format}>();
 const VALIDATORS = new Map<ID, TeamValidator>();
@@ -413,39 +413,42 @@ function getLevel(format: Format, level = 0) {
 const STATISTICS: {[formatid: string]: [string, number]} = {
 	gen1ubers: ['2019-06', 1162],
 	gen1uu: ['2017-12', 710],
+	gen2nu: ['2018-11', 444],
 	gen2ubers: ['2019-07', 389],
 	gen2uu: ['2016-08', 1120],
-	gen2nu: ['2018-11', 444],
+	gen3nu: ['2016-09', 1227],
 	gen3ubers: ['2018-08', 960],
 	gen3uu: ['2016-11', 562],
-	gen3nu: ['2016-09', 1227],
+	gen4anythinggoes: ['2017-03', 442],
+	gen4doublesou: ['2017-10', 61],
+	gen4lc: ['2017-08', 45],
+	gen4nu: ['2016-10', 515],
 	gen4ubers: ['2018-09', 866],
 	gen4uu: ['2019-03', 554],
-	gen4nu: ['2016-10', 515],
-	gen4lc: ['2017-08', 45],
-	gen4doublesou: ['2017-10', 61],
-	gen4anythinggoes: ['2017-03', 442],
+	gen51v1: ['2019-05', 905],
+	gen5doublesou: ['2016-12', 166],
+	gen5lc: ['2018-05',  37],
+	gen5monotype: ['2018-10', 525],
+	gen5nu: ['2017-05', 43],
+	gen5ru: ['2018-01', 49],
 	gen5ubers: ['2016-03', 1666],
 	gen5uu: ['2018-04', 232],
-	gen5ru: ['2018-01', 49],
-	gen5nu: ['2017-05', 43],
-	gen5lc: ['2018-05',  37],
-	gen5doublesou: ['2016-12', 166],
-	gen51v1: ['2019-05', 905],
-	gen5monotype: ['2018-10', 525],
-	gen6ubers: ['2018-11', 2300],
-	gen6uu: ['2017-09', 563],
-	gen6ru: ['2017-08', 38],
-	gen6nu: ['2017-07', 86],
-	gen6pu: ['2017-07', 187],
-	gen6lc: ['2017-07', 33],
+	gen61v1: ['2018-09', 1053],
+	gen6anythinggoes: ['2017-11', 4274],
+	gen6battlespotdoubles: ['2017-07', 40],
+	gen6battlespotsingles: ['2017-10', 78],
 	gen6cap: ['2018-01', 0],
 	gen6doublesou: ['2017-08', 829],
-	gen6battlespotsingles: ['2017-10', 78],
-	gen6battlespotdoubles: ['2017-07', 40],
-	gen6anythinggoes: ['2017-11', 4274],
-	gen61v1: ['2018-09', 1053],
+	gen6lc: ['2017-07', 33],
 	gen6monotype: ['2018-01', 1],
+	gen6nu: ['2017-07', 86],
+	gen6pu: ['2017-07', 187],
+	gen6ru: ['2017-08', 38],
+	gen6ubers: ['2018-11', 2300],
+	gen6uu: ['2017-09', 563],
+	gen6vgc2016: ['2017-09', 742],
+	gen7vgc2017: ['2017-11', 180008],
+	gen7vgc2018: ['2018-08', 367649],
 };
 
 export function getStatisticsURL(index: string, format: Format) {
@@ -464,7 +467,7 @@ function importUsageBasedSets(gen: Generation, format: Format, statistics: smogo
 		const stats = statistics.data[pokemon];
 		if (eligible(dex, toID(pokemon)) && stats.usage >= threshold) {
 			const set: DeepPartial<PokemonSet> = {
-				moves: (top(stats.Moves, 4) as string[]).map(m => dex.getMove(m).name),
+				moves: (top(stats.Moves, 4) as string[]).map(m => dex.getMove(m).name).filter(m => m),
 			};
 			if (gen >= 2 && format.id !== 'gen7letsgoou') {
 				const id = top(stats.Items) as string;
@@ -476,7 +479,10 @@ function importUsageBasedSets(gen: Generation, format: Format, statistics: smogo
 				set.ability = fixedAbility(dex, pokemon, dex.getAbility(id).name);
 				const { nature, evs } = fromSpread(top(stats.Spreads) as string);
 				set.nature = nature;
-				if (format.id !== 'gen7letsgoou') set.evs = evs;
+				if (format.id !== 'gen7letsgoou') {
+					if (!evs || !Object.keys(evs).length) continue;
+					set.evs = evs;
+				}
 			}
 			const name = 'Showdown Usage';
 			if (validSet('smogon.com/stats', dex, format, pokemon, name, set) && !skip(dex, format, pokemon, set)) {
