@@ -182,9 +182,8 @@ function eligible(dex: ModdedDex, id: ID) {
 // TODO: Fix dex data such that CAP mons have a correct gen set
 function toGen(dex: ModdedDex, name: string): Generation | undefined {
 	const pokemon = dex.getTemplate(name);
-	if (!pokemon.exists || (pokemon.isNonstandard && !['CAP', 'LGPE'].includes(pokemon.isNonstandard))) {
-		return undefined;
-	}
+	if (pokemon.isNonstandard === 'LGPE') return 7;
+	if (!pokemon.exists || (pokemon.isNonstandard && pokemon.isNonstandard !== 'CAP')) return undefined;
 
 	const n = pokemon.num;
 	if (n > 721 || (n <= -23 && n >= -28) || (n <= -120 && n >= -126)) return 7;
@@ -217,13 +216,35 @@ async function importSmogonSets(
 			for (const moveset of analysis.movesets) {
 				const set = movesetToPokemonSet(dex, format, pokemon, moveset);
 				const name = cleanName(moveset.name);
-				if (validSet('smogon.com/dex', dex, format, pokemon, name, set) && !skip(dex, format, pokemon, set)) {
-					setsForPokemon[pokemon] = setsForPokemon[pokemon] || {};
-					setsForPokemon[pokemon][name] = set;
-					numByFormat[format.id] = (numByFormat[format.id] || 0) + 1;
+				// Smogon redirects megas back to a base species, but because Necrozma-Ultra has two bases,
+				// Smogon chose to redirect to Necroza-Dawn-Wings. Furthermore, the same set name has been used
+				// for both base species, so we also need to add a disambiguating suffix  to avoid overwrites.
+				if (pokemon === 'Necrozma-Ultra') {
+					addSmogonSet(dex, format, pokemon, `${name} - Dawn-Wings`, set, setsForPokemon, numByFormat);
+				} else if (pokemon === 'Necrozma-Dusk-Mane') {
+					addSmogonSet(dex, format, 'Necrozma-Ultra', `${name} - Dusk-Mane`, set, setsForPokemon, numByFormat);
+					addSmogonSet(dex, format, pokemon, name, set, setsForPokemon, numByFormat);
+				} else {
+					addSmogonSet(dex, format, pokemon, name, set, setsForPokemon, numByFormat);
 				}
 			}
 		}
+	}
+}
+
+function addSmogonSet(
+	dex: ModdedDex,
+	format: Format,
+	pokemon: string,
+	name: string,
+	set: DeepPartial<PokemonSet>,
+	setsForPokemon: PokemonSets,
+	numByFormat: {[format: string]: number}
+) {
+	if (validSet('smogon.com/dex', dex, format, pokemon, name, set)) {
+		setsForPokemon[pokemon] = setsForPokemon[pokemon] || {};
+		setsForPokemon[pokemon][name] = set;
+		numByFormat[format.id] = (numByFormat[format.id] || 0) + 1;
 	}
 }
 
@@ -266,6 +287,8 @@ function fixedAbility(dex: ModdedDex, pokemon: string, ability?: string) {
 function validSet(
 	source: string, dex: ModdedDex, format: Format, pokemon: string, name: string, set: DeepPartial<PokemonSet>
 ) {
+	if (skip(dex, format, pokemon, set)) return false;
+
 	const pset = toPokemonSet(dex, format, pokemon, set);
 	let invalid = VALIDATORS.get(format.id)!.validateSet(pset, {});
 	if (!invalid) return true;
@@ -282,6 +305,26 @@ function validSet(
 	const details = `${JSON.stringify(set)} = ${invalid.join(', ')}`;
 	// console.error(`${color(source, 94)} Invalid set ${color(title, 91)}: ${color(details, 90)}`);
 	console.error(color(`${source} Invalid set ${title}: ${details}`, 90));
+
+	return false;
+}
+
+function skip(dex: ModdedDex, format: Format, pokemon: string, set: DeepPartial<PokemonSet>) {
+	const {gen} = FORMATS.get(format.id)!;
+	const hasMove = (m: string) => set.moves && set.moves.includes(m);
+	const bh = format.id.includes('balancedhackmons');
+
+	if (pokemon === 'Groudon-Primal' && set.item !== 'Red Orb') return true;
+	if (pokemon === 'Kyogre-Primal' && set.item !== 'Blue Orb' && !(bh && gen === 7)) return true;
+	if (bh) return false; // Everying else is legal or will get stripped by the team validator anyway
+
+	if (pokemon === 'Rayquaza-Mega' && (format.id.includes('ubers') || !hasMove('Dragon Ascent'))) return true;
+	if (dex.getTemplate(pokemon).forme.startsWith('Mega') && (dex.getItem(set.item)).megaStone !== pokemon) return true;
+	if (pokemon === 'Necrozma-Ultra' && set.item !== 'Ultranecrozium Z') return true;
+	if (pokemon === 'Greninja-Ash' && set.ability !== 'Battle Bond') return true;
+	if (pokemon === 'Zygarde-Complete' && set.ability !== 'Power Construct') return true;
+	if (pokemon === 'Darmanitan-Zen' && set.ability !== 'Zen Mode') return true;
+	if (pokemon === 'Meloetta-Pirouette' && !hasMove('Relic Song')) return true;
 
 	return false;
 }
@@ -318,10 +361,10 @@ function toPokemonSet(dex: ModdedDex, format: Format, pokemon: string, set: Deep
 	// The validator wants an ability even when Gen < 3
 	copy.ability = copy.ability || 'None';
 
-	// The validator is picky about megas having already evolved so we revert for validation
+	// The validator is picky about megas having already evolved or battle only formes
 	const template = dex.getTemplate(pokemon);
 	const mega = ['Mega', 'Primal', 'Ultra'].some(f => template.forme.startsWith(f));
-	if (!format.id.includes('balancedhackmons') && mega) {
+	if (template.battleOnly || (mega && !format.id.includes('balancedhackmons'))) {
 		copy.species = template.baseSpecies;
 		copy.ability = dex.getTemplate(template.baseSpecies).abilities[0];
 	}
@@ -339,26 +382,6 @@ function expectedHP(ivs: Partial<StatsTable>) {
 
 function fillStats(stats?: Partial<StatsTable>, fill = 0) {
 	return TeamValidator.fillStats(stats || null, fill);
-}
-
-function skip(dex: ModdedDex, format: Format, pokemon: string, set: DeepPartial<PokemonSet>) {
-	const {gen} = FORMATS.get(format.id)!;
-	const hasMove = (m: string) => set.moves && set.moves.includes(m);
-	const bh = format.id.includes('balancedhackmons');
-
-	if (pokemon === 'Groudon-Primal' && set.item !== 'Red Orb') return true;
-	if (pokemon === 'Kyogre-Primal' && set.item !== 'Blue Orb' && !(bh && gen === 7)) return true;
-	if (pokemon === 'Rayquaza-Mega' && (format.id.includes('ubers') || !hasMove('Dragon Ascent'))) return true;
-	if (bh) return false; // Everying else is legal
-
-	if (dex.getTemplate(pokemon).forme === 'Mega' && (dex.getItem(set.item)).megaStone !== pokemon) return true;
-	if (pokemon === 'Necrozma-Ultra' && set.item !== 'Ultranecrozium Z') return true;
-	if (pokemon === 'Greninja-Ash' && set.ability !== 'Battle Bond') return true;
-	if (pokemon === 'Zygarde-Complete' && set.ability !== 'Power Construct') return true;
-	if (pokemon === 'Darmanitan-Zen' && set.ability !== 'Zen Mode') return true;
-	if (pokemon === 'Meloetta-Pirouette' && !hasMove('Relic Song')) return true;
-
-	return false;
 }
 
 const SMOGON = {
@@ -493,7 +516,7 @@ function importUsageBasedSets(gen: Generation, format: Format, statistics: smogo
 				}
 			}
 			const name = 'Showdown Usage';
-			if (validSet('smogon.com/stats', dex, format, pokemon, name, set) && !skip(dex, format, pokemon, set)) {
+			if (validSet('smogon.com/stats', dex, format, pokemon, name, set)) {
 				sets[pokemon] = {};
 				sets[pokemon][name] = set;
 				num++;
@@ -559,7 +582,6 @@ function getWeightsForFormat(format: Format, statistics: smogon.UsageStatistics)
 	const transform = (obj: {[name: string]: number}) => {
 		const sorted = Object.entries(obj).sort(([, a], [, b]) => b - a);
 		const o: {[id: string]: number} = {};
-		let num = 1;
 		for (const [k, v] of sorted) {
 			const w = v / size * 100;
 			if (w < 0.1) break;
@@ -620,7 +642,7 @@ async function importThirdPartySets(
 
 			for (const name in json[mon]) {
 				const set = fixThirdParty(dex, pokemon, json[mon][name]);
-				if (validSet(source, dex, format, pokemon, name, set) && !skip(dex, format, pokemon, set)) {
+				if (validSet(source, dex, format, pokemon, name, set)) {
 					sets[pokemon] = sets[pokemon] || {};
 					sets[pokemon][cleanName(name)] = set;
 					num++;
