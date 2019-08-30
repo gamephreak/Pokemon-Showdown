@@ -164,7 +164,7 @@ function eligible(dex: ModdedDex, id: ID) {
 	if (!gen || gen > dex.gen) return false;
 
 	const template = dex.getTemplate(id);
-	if (['Mega', 'Primal', 'Ultra'].includes(template.forme)) return true;
+	if (['Mega', 'Primal', 'Ultra'].some(f => template.forme.startsWith(f))) return true;
 	if (template.battleOnly) return false;
 
 	// Most of these don't have analyses
@@ -251,7 +251,7 @@ function toStatsTable(stats?: StatsTable, elide = 0) {
 function fixedAbility(dex: ModdedDex, pokemon: string, ability?: string) {
 	if (dex.gen <= 2) return undefined;
 	const template = dex.getTemplate(pokemon);
-	if (ability && !['Mega', 'Primal', 'Ultra'].includes(template.forme)) return ability;
+	if (ability && !['Mega', 'Primal', 'Ultra'].some(f => template.forme.startsWith(f))) return ability;
 	return template.abilities[0];
 }
 
@@ -312,7 +312,8 @@ function toPokemonSet(dex: ModdedDex, format: Format, pokemon: string, set: Deep
 
 	// The validator is picky about megas having already evolved so we revert for validation
 	const template = dex.getTemplate(pokemon);
-	if (!format.id.includes('balancedhackmons') && ['Mega', 'Primal', 'Ultra'].includes(template.forme)) {
+	const mega = ['Mega', 'Primal', 'Ultra'].some(f => template.forme.startsWith(f));
+	if (!format.id.includes('balancedhackmons') && mega) {
 		copy.species = template.baseSpecies;
 		copy.ability = dex.getTemplate(template.baseSpecies).abilities[0];
 	}
