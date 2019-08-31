@@ -318,8 +318,13 @@ function skip(dex: ModdedDex, format: Format, pokemon: string, set: DeepPartial<
 	if (pokemon === 'Kyogre-Primal' && set.item !== 'Blue Orb' && !(bh && gen === 7)) return true;
 	if (bh) return false; // Everying else is legal or will get stripped by the team validator anyway
 
-	if (pokemon === 'Rayquaza-Mega' && (format.id.includes('ubers') || !hasMove('Dragon Ascent'))) return true;
-	if (dex.getTemplate(pokemon).forme.startsWith('Mega') && (dex.getItem(set.item)).megaStone !== pokemon) return true;
+	if (dex.getTemplate(pokemon).forme.startsWith('Mega')) {
+		if (pokemon === 'Rayquaza-Mega') {
+			return format.id.includes('ubers') || !hasMove('Dragon Ascent');
+		} else {
+			return dex.getItem(set.item).megaStone !== pokemon;
+		}
+	}
 	if (pokemon === 'Necrozma-Ultra' && set.item !== 'Ultranecrozium Z') return true;
 	if (pokemon === 'Greninja-Ash' && set.ability !== 'Battle Bond') return true;
 	if (pokemon === 'Zygarde-Complete' && set.ability !== 'Power Construct') return true;
