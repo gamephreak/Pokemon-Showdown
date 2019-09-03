@@ -12,7 +12,7 @@
  * bumped (with 'major' or 'breaking' as the version argument). The exact
  * version string (eg. '1.2.3') can also be provided. After creating the set
  * import, provided there are no serious errors, the package can be released
- * by running `npm publish` in the `sets/` directory.
+ * by running `npm publish --access publish` in the `sets/` directory.
  *
  * @license MIT
  */
@@ -35,11 +35,16 @@ function missing(dep) {
 	}
 }
 
+// We depend on smogon as a devDependency in order to get the typing
+// information, but only need to download json5 on demand if a developer
+// actually runs this set-import tool.
 const deps = [];
 if (missing('smogon')) deps.push('smogon');
 if (missing('json5')) deps.push('json5');
 if (deps.length) shell(`npm install --no-save ${deps}`);
 
+// Rather obnoxiously, the TeamValidator used by the importer refers to
+// rulesets which rely on Chat.plural to be set up, so we do so here.
 global.Chat = {};
 Chat.plural = function (num, plural = 's', singular = '') {
 	if (num && typeof num.length === 'number') {
@@ -58,7 +63,7 @@ const SETS = path.resolve(__dirname, 'sets');
 (async () => {
 	const imports = [];
 	for (let [i, generationData] of (await importer.importAll()).entries()) {
-		fs.writeFileSync(path.resolve(SETS, `gen${i + 1}.json`), JSON.stringify(generationData));
+		fs.writeFileSync(path.resolve(SETS, `gen${i + 1}.jsonls`), JSON.stringify(generationData));
 		imports.push(`gen${i + 1}`);
 		for (let format in generationData) {
 			fs.writeFileSync(path.resolve(SETS, `${format}.json`), JSON.stringify(generationData[format]));
@@ -87,7 +92,7 @@ const SETS = path.resolve(__dirname, 'sets');
 	const packagejson = {
 		"name": "@pokemon-showdown/sets",
 		"version": version,
-		"description": "Sets data imported from Smogon.com and third-party sources and used on Pokémon Showdown",
+		"description": "Set data imported from Smogon.com and third-party sources and used on Pokémon Showdown",
 		"main": "build/index.js",
 		"types": "build/index.d.ts",
 		"repository": {
@@ -95,13 +100,15 @@ const SETS = path.resolve(__dirname, 'sets');
 			"url": "https://github.com/Zarel/Pokemon-Showdown.git",
 		},
 		"author": "Kirk Scheibelhut",
-		"license": "UNLICENSED", // The code/typings are MIT, but not all sources of data fall under this license
+		"license": "UNLICENSED", // The code/typings are MIT, but not all sources of data fall under MIT
 	};
 	fs.writeFileSync(path.resolve(SETS, 'package.json'), JSON.stringify(packagejson, null, 2));
 
 	const indexjs = [
 		'"use strict";',
 		'var JSON;',
+		// This hack allows us to require this package in Node and in the browser
+		// and have the Node code which uses `require` get stripped on web.
 		'if (typeof window === "undefined") {',
 		'	JSON = {',
 		imports.map(n => `		"${n}": load("./${n}.json")`).join(',\n'),

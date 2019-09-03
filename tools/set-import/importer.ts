@@ -43,6 +43,7 @@ interface FormatData {
 
 type Generation = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
+// The tiers we support, ie. ones that we have data sources for.
 export const TIERS = new Set([
 	'ubers', 'ou', 'uu', 'ru', 'nu', 'pu', 'zu', 'lc', 'cap',
 	'doublesou', 'battlespotsingles', 'battlespotdoubles',
@@ -432,7 +433,11 @@ function getLevel(format: Format, level = 0) {
 	return level > maxForcedLevel ? maxForcedLevel : level;
 }
 
-// Fallback information for past formats that are most likely not present in current usage statistics
+// Fallback information for past formats that are most likely not present in current
+// usage statistics. Should be updated based on rotational old gen ladders, see the
+// `stats` tool in this directory for updating this. The total number of battles is
+// also included to help us reason about the quality of the stats data when determining
+// a usage threshold
 const STATISTICS: {[formatid: string]: [string, number]} = {
 	gen1ubers: ['2019-06', 1162],
 	gen1uu: ['2017-12', 710],
@@ -521,10 +526,12 @@ function importUsageBasedSets(gen: Generation, format: Format, statistics: smogo
 
 function getUsageThreshold(format: Format) {
 	const unpopular = STATISTICS[format.id];
+	// For old metagames with extremely low total battle counts we adjust the thresholds
 	if (unpopular) {
 		if (unpopular[1] < 100) return Infinity;
 		if (unpopular[1] < 400) return 0.05;
 	}
+	// These formats are deemed to have playerbases of lower quality than normal
 	return format.id.match(/uber|anythinggoes|doublesou/) ? 0.03 : 0.01;
 }
 
@@ -542,7 +549,7 @@ function fromSpread(spread: string) {
 
 function top(weighted: {[key: string]: number}, n = 1): string | string[] | undefined {
 	if (n === 0) return undefined;
-	// Optimize the common case with an linear algorithm instead of log-linear
+	// Optimize the more common case with an linear algorithm instead of log-linear
 	if (n === 1) {
 		let max;
 		for (const key in weighted) {
@@ -647,16 +654,17 @@ class RetryableError extends Error {
 
 // We throttle to 20 QPS by only issuing one request every 50ms at most. This
 // is importantly different than using the more obvious 20 and 1000ms here,
-// as it results in more spaced out requests which won't cause gettaddrinfo
+// as it results in more spaced out requests which won't cause as many gettaddrinfo
 // ENOTFOUND (nodejs/node-v0.x-archive#5488). Similarly, the evenly spaced
 // requests makes us signficantly less likely to encounter ECONNRESET errors
-//  from server throttling. Retry up to 5 times with a 20ms backoff increment.
+// on macOS (though these are still pretty frequent, Linux is recommended for running
+// this tool). Retry up to 5 times with a 20ms backoff increment.
 const request = retrying(throttling(fetch, 1, 50), 5, 20);
 
 export function fetch(u: string) {
 	const client = u.startsWith('http:') ? http : https;
 	return new Promise<string>((resolve, reject) => {
-		// @ts-ignore ???
+		// @ts-ignore ??? (Typescript seems to get this wrong...)
 		const req = client.get(u, (res: IncomingMessage) => {
 			if (res.statusCode !== 200) {
 				if (res.statusCode >= 500 && res.statusCode < 600) {
