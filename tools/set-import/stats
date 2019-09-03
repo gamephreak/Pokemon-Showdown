@@ -21,7 +21,7 @@ for (let gen = 1; gen <= 7; gen++) {
 	const begin = new Date('Nov 2014');
 	const end = new Date(smogon.Statistics.latest(index));
 	end.setDate(end.getDate() + 1);
-	for (let d = begin; d <= end; d.setMonth(d.getMonth() + 1)) {
+	for (const d = begin; d <= end; d.setMonth(d.getMonth() + 1)) {
 		const month = `${d.getMonth() + 1}`.padStart(2, '0');
 		const date = `${1900 + d.getYear()}-${month}`;
 		const raw = await importer.fetch(`${smogon.Statistics.URL}${date}/`);
@@ -37,5 +37,5 @@ for (let gen = 1; gen <= 7; gen++) {
 		}
 	}
 
-	 console.log(JSON.stringify(Array.from(missing.entries()), null, 2));
-})();
+	console.log(JSON.stringify(Array.from(missing.entries()), null, 2));
+})().catch(err => console.error(err));

@@ -58,10 +58,10 @@ const SETS = path.resolve(__dirname, 'sets');
 (async () => {
 	const imports = [];
 	for (let [i, generationData] of (await importer.importAll()).entries()) {
-		fs.writeFileSync(path.resolve(SETS, `gen${i + 1}.json`), JSON.stringify(generationData, null, 2)); // FIXME
+		fs.writeFileSync(path.resolve(SETS, `gen${i + 1}.json`), JSON.stringify(generationData));
 		imports.push(`gen${i + 1}`);
 		for (let format in generationData) {
-			fs.writeFileSync(path.resolve(SETS, `${format}.json`), JSON.stringify(generationData[format], null, 2)); // FIXME
+			fs.writeFileSync(path.resolve(SETS, `${format}.json`), JSON.stringify(generationData[format]));
 			imports.push(format);
 		}
 	}
@@ -87,7 +87,7 @@ const SETS = path.resolve(__dirname, 'sets');
 	const packagejson = {
 		"name": "@pokemon-showdown/sets",
 		"version": version,
-		"description": "Sets and weight data imported from Smogon and third-party sources and used on Pokémon Showdown",
+		"description": "Sets data imported from Smogon.com and third-party sources and used on Pokémon Showdown",
 		"main": "build/index.js",
 		"types": "build/index.d.ts",
 		"repository": {
@@ -95,7 +95,7 @@ const SETS = path.resolve(__dirname, 'sets');
 			"url": "https://github.com/Zarel/Pokemon-Showdown.git",
 		},
 		"author": "Kirk Scheibelhut",
-		"license": "MIT",
+		"license": "UNLICENSED", // The code/typings are MIT, but not all sources of data fall under this license
 	};
 	fs.writeFileSync(path.resolve(SETS, 'package.json'), JSON.stringify(packagejson, null, 2));
 

@@ -21,33 +21,15 @@ export interface PokemonSet {
 export declare type DeepPartial<T> = {
 	[P in keyof T]?: T[P] extends Array<infer I> ? Array<DeepPartial<I>> : DeepPartial<T[P]>;
 };
-export interface Sets {
+export interface GenerationData {
+	[formatid: string]: FormatData;
+}
+export interface FormatData {
 	[source: string]: {
 		[speciesid: string]: {
 			[name: string]: DeepPartial<PokemonSet>;
 		};
 	};
-}
-export interface Weights {
-	species: {
-		[id: string]: number;
-	};
-	abilities: {
-		[id: string]: number;
-	};
-	items: {
-		[id: string]: number;
-	};
-	moves: {
-		[id: string]: number;
-	};
-}
-export interface GenerationData {
-	[formatid: string]: FormatData;
-}
-export interface FormatData {
-	sets: Sets;
-	weights?: Weights;
 }
 export declare type Generation = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 export declare function forGen(gen: Generation): Promise<GenerationData> | undefined;

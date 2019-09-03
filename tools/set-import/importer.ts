@@ -26,17 +26,6 @@ interface PokemonSets {
 	};
 }
 
-interface Sets {
-	[source: string]: PokemonSets;
-}
-
-interface Weights  {
-	species: {[id: string]: number};
-	abilities: {[id: string]: number};
-	items: {[id: string]: number};
-	moves: {[id: string]: number};
-}
-
 interface IncomingMessage extends NodeJS.ReadableStream {
 	statusCode: number;
 	headers: {location?: string};
@@ -49,8 +38,7 @@ interface GenerationData {
 
 // eg. 'gen7balancedhackmons.json'
 interface FormatData {
-	sets: Sets;
-	weights?: Weights;
+	[source: string]: PokemonSets;
 }
 
 type Generation = 1 | 2 | 3 | 4 | 5 | 6 | 7;
@@ -150,7 +138,6 @@ async function importGen(gen: Generation, index: string) {
 				data[format.id].sets['smogon.com/stats'] = sets;
 			}
 			data[format.id] = data[format.id] || {sets: {}};
-			data[format.id].weights = getWeightsForFormat(format, statistics);
 		} catch (err) {
 			error(`${u} = ${err}`);
 		}
@@ -567,53 +554,6 @@ function top(weighted: {[key: string]: number}, n = 1): string | string[] | unde
 		.sort((a, b) => b[1] - a[1])
 		.slice(0, n)
 		.map(x => x[0]);
-}
-
-function getWeightsForFormat(format: Format, statistics: smogon.UsageStatistics) {
-	const species: {[id: string]: number} = {};
-	const abilities: {[id: string]: number} = {};
-	const items: {[id: string]: number} = {};
-	const moves: {[id: string]: number} = {};
-
-	for (const name in statistics.data) {
-		const stats = statistics.data[name];
-		species[name] = stats.usage;
-		updateWeights(abilities, stats.Abilities, stats.usage);
-		updateWeights(items, stats.Items, stats.usage);
-		updateWeights(moves, stats.Moves, stats.usage, 4);
-	}
-
-	const size = (format.teamLength && format.teamLength.battle) || 6;
-	const transform = (obj: {[name: string]: number}) => {
-		const sorted = Object.entries(obj).sort(([, a], [, b]) => b - a);
-		const o: {[id: string]: number} = {};
-		for (const [k, v] of sorted) {
-			const w = v / size * 100;
-			if (w < 0.1) break;
-			if (k && k !== 'nothing') o[toID(k)] = Math.round(w * 100) / 100;
-		}
-		return o;
-	};
-
-	return {
-		species: transform(species),
-		abilities: transform(abilities),
-		items: transform(items),
-		moves: transform(moves),
-	};
-}
-
-function updateWeights(
-	existing: {[name: string]: number},
-	weights: {[name: string]: number},
-	usage: number,
-	factor = 1
-) {
-	const totalWeight = Object.values(weights).reduce((acc, v) => acc + v);
-	for (const name in weights) {
-		const weight = (weights[name] / totalWeight) * factor * usage;
-		existing[name] = (existing[name] || 0) + weight;
-	}
 }
 
 async function importThirdPartySets(
