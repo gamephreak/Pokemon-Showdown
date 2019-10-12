@@ -3451,8 +3451,8 @@ let BattleMovedex = {
 		accuracy: true,
 		basePower: 0,
 		category: "Status",
-		desc: "The user swaps all its stat stage changes with the target, then takes 1/4 of its maximum HP, rounded down, and puts it into a substitute to take its place in battle.",
-		shortDesc: "Swaps all stat changes with target + Substitute.",
+		desc: "The user passes off its negative stat stage changes to the target and steals their positive stat stage changes, then takes 1/4 of its maximum HP, rounded down, and puts it into a substitute to take its place in battle.",
+		shortDesc: "Gains buffs, sheds drops + Substitute.",
 		id: "refactor",
 		name: "Refactor",
 		isNonstandard: "Custom",
@@ -3481,15 +3481,16 @@ let BattleMovedex = {
 
 			for (let i in target.boosts) {
 				// @ts-ignore
-				targetBoosts[i] = target.boosts[i];
+				targetBoosts[i] = Math.min(Math.max(source.boosts[i], 0) + (target.boosts[i] > 0 ? target.boosts[i] : 0), 6);
 				// @ts-ignore
-				sourceBoosts[i] = source.boosts[i];
+				sourceBoosts[i] = Math.max(Math.min(target.boosts[i], 0) + (source.boosts[i] < 0 ? source.boosts[i] : 0), -6);
 			}
 
 			target.setBoost(sourceBoosts);
 			source.setBoost(targetBoosts);
 
 			this.add('-swapboost', source, target, '[from] move: Refactor');
+			// TODO: add a possible chance to lose additional health?
 			this.directDamage(source.maxhp / 4, source);
 		},
 		self: {
