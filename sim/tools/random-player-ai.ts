@@ -34,6 +34,7 @@ export class RandomPlayerAI extends BattlePlayer {
 	}
 
 	receiveRequest(request: AnyObject) {
+		console.log(request);
 		if (request.wait) {
 			// wait request
 			// do nothing
@@ -44,7 +45,7 @@ export class RandomPlayerAI extends BattlePlayer {
 			const choices = request.forceSwitch.map((mustSwitch: AnyObject) => {
 				if (!mustSwitch) return `pass`;
 
-				const canSwitch = [1, 2, 3, 4, 5, 6].filter(i => (
+				const canSwitch = range(1, 6).filter(i => (
 					pokemon[i - 1] &&
 					// not active
 					i > request.forceSwitch.length &&
@@ -65,7 +66,7 @@ export class RandomPlayerAI extends BattlePlayer {
 			this.choose(choices.join(`, `));
 		} else if (request.active) {
 			// move request
-			let [canMegaEvo, canUltraBurst, canZMove] = [true, true, true];
+			let [canMegaEvo, canUltraBurst, canZMove, canDynamax] = [true, true, true, true];
 			const pokemon = request.side.pokemon;
 			const chosen: number[] = [];
 			const choices = request.active.map((active: AnyObject, i: number) => {
@@ -74,21 +75,23 @@ export class RandomPlayerAI extends BattlePlayer {
 				canMegaEvo = canMegaEvo && active.canMegaEvo;
 				canUltraBurst = canUltraBurst && active.canUltraBurst;
 				canZMove = canZMove && !!active.canZMove;
+				canDynamax = canDynamax && !!active.canDynamax;
 
-				let canMove = [1, 2, 3, 4].slice(0, active.moves.length).filter(j => (
+				const possibleMoves = (!active.canDynamax && active.maxMoves) ? active.maxMoves.maxMoves : active.moves;
+				let canMove = range(1, possibleMoves.length).filter(j => (
 					// not disabled
-					!active.moves[j - 1].disabled
+					!possibleMoves[j - 1].disabled
 					// NOTE: we don't actually check for whether we have PP or not because the
 					// simulator will mark the move as disabled if there is zero PP and there are
 					// situations where we actually need to use a move with 0 PP (Gen 1 Wrap).
 				)).map(j => ({
 					slot: j,
-					move: active.moves[j - 1].move,
-					target: active.moves[j - 1].target,
+					move: possibleMoves[j - 1].move,
+					target: possibleMoves[j - 1].target,
 					zMove: false,
 				}));
 				if (canZMove) {
-					canMove.push(...[1, 2, 3, 4].slice(0, active.canZMove.length)
+					canMove.push(...range(1, active.canZMove.length)
 						.filter(j => active.canZMove[j - 1])
 						.map(j => ({
 							slot: j,
@@ -126,7 +129,7 @@ export class RandomPlayerAI extends BattlePlayer {
 					return {choice: move, move: m};
 				});
 
-				const canSwitch = [1, 2, 3, 4, 5, 6].filter(j => (
+				const canSwitch = range(1, 6).filter(j => (
 					pokemon[j - 1] &&
 					// not active
 					!pokemon[j - 1].active &&
@@ -148,8 +151,11 @@ export class RandomPlayerAI extends BattlePlayer {
 					if (move.endsWith(` zmove`)) {
 						canZMove = false;
 						return move;
-					} else if ((canMegaEvo || canUltraBurst) && this.prng.next() < this.mega) {
-						if (canMegaEvo) {
+					} else if ((canMegaEvo || canUltraBurst || canDynamax) && this.prng.next() < this.mega) {
+						if (canDynamax) {
+							canDynamax = false;
+							return `${move} dynamax`;
+						} else if (canMegaEvo) {
 							canMegaEvo = false;
 							return `${move} mega`;
 						} else {
@@ -161,7 +167,8 @@ export class RandomPlayerAI extends BattlePlayer {
 					}
 				} else {
 					throw new Error(`${this.constructor.name} unable to make choice ${i}. request='${request}',` +
-						` chosen='${chosen}', (mega=${canMegaEvo}, ultra=${canUltraBurst}, zmove=${canZMove})`);
+						` chosen='${chosen}', (mega=${canMegaEvo}, ultra=${canUltraBurst}, zmove=${canZMove},` +
+						` dynamax='${canDynamax}')`);
 				}
 			});
 			this.choose(choices.join(`, `));
@@ -182,4 +189,17 @@ export class RandomPlayerAI extends BattlePlayer {
 	protected chooseSwitch(switches: {slot: number, pokemon: AnyObject}[]): number {
 		return this.prng.sample(switches).slot;
 	}
+}
+
+// Creates an array of numbers progressing from start up to and including end
+function range(start: number, end?: number, step = 1) {
+	if (end === undefined) {
+		end = start;
+		start = 0;
+	}
+	const result = [];
+	for (; start <= end; start += step) {
+		result.push(start);
+	}
+	return result;
 }
