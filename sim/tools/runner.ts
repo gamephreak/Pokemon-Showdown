@@ -16,8 +16,6 @@ import {RandomPlayerAI} from './random-player-ai';
 
 export interface AIOptions {
 	createAI: (stream: ObjectReadWriteStream<string>, options: AIOptions) => RandomPlayerAI;
-	move?: number;
-	mega?: number;
 	seed?: PRNG | PRNGSeed | null;
 	team?: PokemonSet[];
 }
@@ -35,9 +33,7 @@ export interface RunnerOptions {
 
 export class Runner {
 	static readonly AI_OPTIONS: AIOptions = {
-		createAI: (s: ObjectReadWriteStream<string>, o: AIOptions) => new RandomPlayerAI(s, o),
-		move: 0.7,
-		mega: 0.6,
+		createAI: (s: ObjectReadWriteStream<string>, o: AIOptions) => new RandomPlayerAI(s, o.seed || undefined),
 	};
 
 	private readonly prng: PRNG;

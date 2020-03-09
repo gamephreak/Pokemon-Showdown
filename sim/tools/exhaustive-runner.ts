@@ -8,7 +8,7 @@
 import {ObjectReadWriteStream} from '../../lib/streams';
 import {Dex} from '../dex';
 import {PRNG, PRNGSeed} from '../prng';
-import {RandomPlayerAI} from './random-player-ai';
+import {RandomPlayerAI, RequestPokemon, RequestActivePokemon, MoveOption} from './random-player-ai';
 import {AIOptions, Runner} from './runner';
 const toID = Dex.getId;
 
@@ -402,52 +402,61 @@ class CoordinatedPlayerAI extends RandomPlayerAI {
 	private readonly pools: Pools;
 
 	constructor(playerStream: ObjectReadWriteStream<string>, options: AIOptions, pools: Pools) {
-		super(playerStream, options);
+		super(playerStream, options.seed || undefined);
 		this.pools = pools;
 	}
 
-	protected chooseTeamPreview(team: AnyObject[]): string {
-		return `team ${this.choosePokemon(team.map((p, i) => ({slot: i + 1, pokemon: p}))) || 1}`;
+	protected chooseTeamPreview(team: RequestPokemon[]): string {
+		return `team ${this.choosePokemon(team.map((p, i) => ({slot: i + 1, pokemon: p})))?.slot || 1}`;
 	}
 
-	protected chooseMove(active: AnyObject, moves: {choice: string, move: AnyObject}[]): string {
+	protected chooseForceSwitch(
+		active: RequestActivePokemon | undefined,
+		switches: {slot: number, pokemon: RequestPokemon}[]
+	): number {
+		return this.chooseSwitch(active, switches).slot;
+	}
+
+	protected chooseMove(active: RequestActivePokemon, moves: {choice: string, move: MoveOption}[]) {
 		this.markUsedIfGmax(active);
 		// Prefer to use a move which hasn't been used yet.
 		for (const {choice, move} of moves) {
-			const id = this.fixMove(move);
+			const id = this.fixMove(toID(move.move));
 			if (!this.pools.moves.wasUsed(id)) {
 				this.pools.moves.markUsed(id);
-				return choice;
+				return {choice, move};
 			}
 		}
 		return super.chooseMove(active, moves);
 	}
 
-	protected chooseSwitch(active: AnyObject | undefined, switches: {slot: number, pokemon: AnyObject}[]): number {
+	protected chooseSwitch(
+		active: RequestActivePokemon | undefined,
+		switches: {slot: number, pokemon: RequestPokemon}[]
+	) {
 		this.markUsedIfGmax(active);
 		return this.choosePokemon(switches) || super.chooseSwitch(active, switches);
 	}
 
-	private choosePokemon(choices: {slot: number, pokemon: AnyObject}[]) {
+	private choosePokemon(choices: {slot: number, pokemon: RequestPokemon}[]) {
 		// Prefer to choose a Pokemon that has a species/ability/item/move we haven't seen yet.
 		for (const {slot, pokemon} of choices) {
 			const species = toID(pokemon.details.split(',')[0]);
 			if (!this.pools.pokemon.wasUsed(species) ||
 					!this.pools.abilities.wasUsed(pokemon.baseAbility) ||
 					!this.pools.items.wasUsed(pokemon.item) ||
-					pokemon.moves.some((m: AnyObject) => !this.pools.moves.wasUsed(this.fixMove(m)))) {
+					pokemon.moves.some((m: ID) => !this.pools.moves.wasUsed(this.fixMove(m)))) {
 				this.pools.pokemon.markUsed(species);
 				this.pools.abilities.markUsed(pokemon.baseAbility);
 				this.pools.items.markUsed(pokemon.item);
-				return slot;
+				return {slot, pokemon};
 			}
 		}
 	}
 
 	// The move options provided by the simulator have been converted from the name
 	// which we're tracking, so we need to convert them back.
-	private fixMove(m: AnyObject) {
-		const id = toID(m.move);
+	private fixMove(id: ID) {
 		if (id.startsWith('return')) return 'return';
 		if (id.startsWith('frustration')) return 'frustration';
 		if (id.startsWith('hiddenpower')) return 'hiddenpower';

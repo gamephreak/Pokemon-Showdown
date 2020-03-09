@@ -10,20 +10,68 @@ import {ObjectReadWriteStream} from '../../lib/streams';
 import {BattlePlayer} from '../battle-stream';
 import {PRNG, PRNGSeed} from '../prng';
 
+export interface Request {
+	rqid: number;
+	active: RequestActivePokemon[];
+	side: {
+		name: string,
+		id: string,
+		pokemon: RequestPokemon[],
+	};
+	forceSwitch?: [true] & boolean[];
+	wait?: boolean;
+}
+
+export interface RequestActivePokemon {
+	trapped?: boolean;
+	maybeDisabled?: boolean;
+	maybeTrapped?: boolean;
+	canMegaEvo?: boolean;
+	canUltraBurst?: boolean;
+	canZMove?: ZMoveOptions;
+	canDynamax?: boolean;
+	maxMoves?: DynamaxOptions;
+	moves: {
+		move: string,
+		id: ID,
+		pp: number,
+		maxpp: number,
+		target: MoveTarget,
+		disabled: string | boolean,
+	}[];
+}
+
+export interface RequestPokemon {
+	active?: boolean;
+	details: string;
+	ident: string;
+	pokeball: ID;
+	ability: ID;
+	baseAbility: ID;
+	condition: string;
+	item: ID;
+	moves: ID[];
+	stats: StatsTable;
+}
+
+export interface MoveOption {
+	slot: number;
+	move: string;
+	target: string;
+	maxMove?: boolean;
+	zMove?: boolean;
+}
+
 export class RandomPlayerAI extends BattlePlayer {
-	protected readonly move: number;
-	protected readonly mega: number;
 	protected readonly prng: PRNG;
 
 	constructor(
 		playerStream: ObjectReadWriteStream<string>,
-		options: {move?: number, mega?: number, seed?: PRNG | PRNGSeed | null } = {},
+		seed?: PRNG | PRNGSeed,
 		debug = false
 	) {
 		super(playerStream, debug);
-		this.move = options.move || 1.0;
-		this.mega = options.mega || 0;
-		this.prng = options.seed && !Array.isArray(options.seed) ? options.seed : new PRNG(options.seed);
+		this.prng = seed && !Array.isArray(seed) ? seed : new PRNG(seed);
 	}
 
 	receiveError(error: Error) {
@@ -33,7 +81,7 @@ export class RandomPlayerAI extends BattlePlayer {
 		throw error;
 	}
 
-	receiveRequest(request: AnyObject) {
+	receiveRequest(request: Request) {
 		if (request.wait) {
 			// wait request
 			// do nothing
@@ -41,22 +89,22 @@ export class RandomPlayerAI extends BattlePlayer {
 			// switch request
 			const pokemon = request.side.pokemon;
 			const chosen: number[] = [];
-			const choices = request.forceSwitch.map((mustSwitch: AnyObject) => {
+			const choices = request.forceSwitch.map((mustSwitch: boolean, i: number) => {
 				if (!mustSwitch) return `pass`;
 
-				const canSwitch = range(1, 6).filter(i => (
-					pokemon[i - 1] &&
+				const canSwitch = range(1, 6).filter(j => (
+					pokemon[j - 1] &&
 					// not active
-					i > request.forceSwitch.length &&
+					j > request.forceSwitch!.length &&
 					// not chosen for a simultaneous switch
-					!chosen.includes(i) &&
+					!chosen.includes(j) &&
 					// not fainted
-					!pokemon[i - 1].condition.endsWith(` fnt`)
+					!pokemon[j - 1].condition.endsWith(` fnt`)
 				));
 
 				if (!canSwitch.length) return `pass`;
-				const target = this.chooseSwitch(
-					request.active,
+				const target = this.chooseForceSwitch(
+					request.active && request.active[i],
 					canSwitch.map(slot => ({slot, pokemon: pokemon[slot - 1]}))
 				);
 				chosen.push(target);
@@ -69,41 +117,48 @@ export class RandomPlayerAI extends BattlePlayer {
 			let [canMegaEvo, canUltraBurst, canZMove, canDynamax] = [true, true, true, true];
 			const pokemon = request.side.pokemon;
 			const chosen: number[] = [];
-			const choices = request.active.map((active: AnyObject, i: number) => {
+			const choices = request.active.map((active: RequestActivePokemon, i: number) => {
 				if (pokemon[i].condition.endsWith(` fnt`)) return `pass`;
 
-				canMegaEvo = canMegaEvo && active.canMegaEvo;
-				canUltraBurst = canUltraBurst && active.canUltraBurst;
+				canMegaEvo = canMegaEvo && !!active.canMegaEvo;
+				canUltraBurst = canUltraBurst && !!active.canUltraBurst;
 				canZMove = canZMove && !!active.canZMove;
 				canDynamax = canDynamax && !!active.canDynamax;
 
-				// Determine whether we should change form if we do end up switching
-				const change = (canMegaEvo || canUltraBurst || canDynamax) && this.prng.next() < this.mega;
-				// If we've already dynamaxed or if we're planning on potentially dynamaxing
-				// we need to use the maxMoves instead of our regular moves
+				const isDynamax = !active.canDynamax && active.maxMoves;
 
-				const useMaxMoves = (!active.canDynamax && active.maxMoves) || (change && canDynamax);
-				const possibleMoves = useMaxMoves ? active.maxMoves.maxMoves : active.moves;
-
-				let canMove = range(1, possibleMoves.length).filter(j => (
-					// not disabled
-					!possibleMoves[j - 1].disabled
-					// NOTE: we don't actually check for whether we have PP or not because the
-					// simulator will mark the move as disabled if there is zero PP and there are
-					// situations where we actually need to use a move with 0 PP (Gen 1 Wrap).
-				)).map(j => ({
-					slot: j,
-					move: possibleMoves[j - 1].move,
-					target: possibleMoves[j - 1].target,
-					zMove: false,
-				}));
-				if (canZMove) {
-					canMove.push(...range(1, active.canZMove.length)
-						.filter(j => active.canZMove[j - 1])
+				let canMove: MoveOption[] = [];
+				if (!isDynamax) {
+					canMove.push(...range(1, active.moves.length).filter(j => (
+						// not disabled
+						!active.moves[j - 1].disabled
+						// NOTE: we don't actually check for whether we have PP or not because the
+						// simulator will mark the move as disabled if there is zero PP and there are
+						// situations where we actually need to use a move with 0 PP (Gen 1 Wrap).
+					)).map(j => ({
+						slot: j,
+						move: active.moves[j - 1].move,
+						target: active.moves[j - 1].target,
+					})));
+				}
+				if (active.maxMoves) {
+					const maxMoves: DynamaxOptions['maxMoves'] = active.maxMoves.maxMoves;
+					canMove.push(...range(1, maxMoves.length).filter(j => (
+						// not disabled
+						!maxMoves[j - 1].disabled
+					)).map(j => ({
+						slot: j,
+						move: maxMoves[j - 1].move,
+						target: maxMoves[j - 1].target,
+						maxMove: true,
+					})));
+				} else if (canZMove) {
+					canMove.push(...range(1, active.canZMove!.length)
+						.filter(j => active.canZMove![j - 1])
 						.map(j => ({
 							slot: j,
-							move: active.canZMove[j - 1].move,
-							target: active.canZMove[j - 1].target,
+							move: active.canZMove![j - 1]!.move,
+							target: active.canZMove![j - 1]!.target,
 							zMove: true,
 						})));
 				}
@@ -114,27 +169,28 @@ export class RandomPlayerAI extends BattlePlayer {
 				const filtered = canMove.filter(m => m.target !== `adjacentAlly` || hasAlly);
 				canMove = filtered.length ? filtered : canMove;
 
-				const moves = canMove.map(m => {
+				const moves: {choice: string, move: MoveOption}[] = [];
+				for (const m of canMove) {
 					let move = `move ${m.slot}`;
-					// NOTE: We don't generate all possible targeting combinations.
 					if (request.active.length > 1) {
 						if ([`normal`, `any`, `adjacentFoe`].includes(m.target)) {
-							move += ` ${1 + Math.floor(this.prng.next() * 2)}`;
-						}
-						if (m.target === `adjacentAlly`) {
+							moves.push(toMoveChoice(m, `${move} 1`));
+							moves.push(toMoveChoice(m, `${move} 2`));
+							continue;
+						} else if (m.target === `adjacentAlly`) {
 							move += ` -${(i ^ 1) + 1}`;
-						}
-						if (m.target === `adjacentAllyOrSelf`) {
+						} else if (m.target === `adjacentAllyOrSelf`) {
 							if (hasAlly) {
-								move += ` -${1 + Math.floor(this.prng.next() * 2)}`;
+								moves.push(toMoveChoice(m, `${move} -1`));
+								moves.push(toMoveChoice(m, `${move} -2`));
+								continue;
 							} else {
 								move += ` -${i + 1}`;
 							}
 						}
 					}
-					if (m.zMove) move += ` zmove`;
-					return {choice: move, move: m};
-				});
+					moves.push(toMoveChoice(m, move));
+				}
 
 				const canSwitch = range(1, 6).filter(j => (
 					pokemon[j - 1] &&
@@ -145,21 +201,21 @@ export class RandomPlayerAI extends BattlePlayer {
 					// not fainted
 					!pokemon[j - 1].condition.endsWith(` fnt`)
 				));
-				const switches = active.trapped ? [] : canSwitch;
+				const switches = active.trapped ? [] : canSwitch.map(slot => ({slot, pokemon: pokemon[slot - 1]}));
+				if (!switches.length && !moves.length) {
+					throw new Error(`${this.constructor.name} unable to make choice ${i}. request='${request}',` +
+					` chosen='${chosen}', (mega=${canMegaEvo}, ultra=${canUltraBurst}, zmove=${canZMove},` +
+					` dynamax='${canDynamax}')`);
+				}
 
-				if (switches.length && (!moves.length || this.prng.next() > this.move)) {
-					const target = this.chooseSwitch(
-						active,
-						canSwitch.map(slot => ({slot, pokemon: pokemon[slot - 1]}))
-					);
-					chosen.push(target);
-					return `switch ${target}`;
-				} else if (moves.length) {
-					const move = this.chooseMove(active, moves);
+				const canFormeChange = canMegaEvo || canUltraBurst || canDynamax;
+				const decision = this.makeDecision(active, moves, switches, canFormeChange);
+				if (decision.type === 'move') {
+					const move = decision.choice;
 					if (move.endsWith(` zmove`)) {
 						canZMove = false;
 						return move;
-					} else if (change) {
+					} else if (decision.formeChange) {
 						if (canDynamax) {
 							canDynamax = false;
 							return `${move} dynamax`;
@@ -174,9 +230,8 @@ export class RandomPlayerAI extends BattlePlayer {
 						return move;
 					}
 				} else {
-					throw new Error(`${this.constructor.name} unable to make choice ${i}. request='${request}',` +
-						` chosen='${chosen}', (mega=${canMegaEvo}, ultra=${canUltraBurst}, zmove=${canZMove},` +
-						` dynamax='${canDynamax}')`);
+					chosen.push(decision.slot);
+					return `switch ${decision.slot}`;
 				}
 			});
 			this.choose(choices.join(`, `));
@@ -186,17 +241,41 @@ export class RandomPlayerAI extends BattlePlayer {
 		}
 	}
 
-	protected chooseTeamPreview(team: AnyObject[]): string {
+	protected chooseTeamPreview(team: RequestPokemon[]): string {
 		return `default`;
 	}
 
-	protected chooseMove(active: AnyObject, moves: {choice: string, move: AnyObject}[]): string {
-		return this.prng.sample(moves).choice;
+	protected chooseForceSwitch(
+		active: RequestActivePokemon | undefined,
+		switches: {slot: number, pokemon: RequestPokemon}[]
+	): number {
+		return this.chooseSwitch(active, switches).slot;
 	}
 
-	protected chooseSwitch(active: AnyObject | undefined, switches: {slot: number, pokemon: AnyObject}[]): number {
-		return this.prng.sample(switches).slot;
+	protected makeDecision(
+		active: RequestActivePokemon,
+		moves: {choice: string, move: MoveOption}[],
+		switches: {slot: number, pokemon: RequestPokemon}[],
+		canFormeChange: boolean,
+	): {type: 'switch', slot: number} | {type: 'move', choice: string, formeChange: boolean} {
+		if (this.prng.next(0, switches.length + moves.length) < switches.length) {
+			return {type: 'switch', slot: this.chooseSwitch(active, switches).slot};
+		} else {
+			return {type: 'move', choice: this.chooseMove(active, moves).choice, formeChange: canFormeChange};
+		}
 	}
+
+	protected chooseSwitch(_: RequestActivePokemon | undefined, switches: {slot: number, pokemon: RequestPokemon}[]) {
+		return this.prng.sample(switches);
+	}
+
+	protected chooseMove(_: RequestActivePokemon, moves: {choice: string, move: MoveOption}[]) {
+		return this.prng.sample(moves);
+	}
+}
+
+function toMoveChoice(move: MoveOption, choice: string) {
+	return {choice: move.zMove ? `${choice} zmove` : choice, move};
 }
 
 // Creates an array of numbers progressing from start up to and including end
