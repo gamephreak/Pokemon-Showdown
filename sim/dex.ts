@@ -458,7 +458,7 @@ export class ModdedDex {
 			template.baseSpecies;
 	}
 
-	getLearnsetData(id: ID): LearnsetData {
+	async getLearnsetData(id: ID): Promise<LearnsetData> {
 		let learnsetData = this.learnsetCache.get(id);
 		if (learnsetData) return learnsetData;
 		if (!this.data.Learnsets.hasOwnProperty(id)) {

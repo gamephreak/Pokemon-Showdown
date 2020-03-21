@@ -200,26 +200,26 @@ export class TeamValidator {
 			this.ruleTable.minSourceGen[0] : 1;
 	}
 
-	validateTeam(
+	async validateTeam(
 		team: PokemonSet[] | null,
 		options: {
 			removeNicknames?: boolean,
 			skipSets?: {[name: string]: {[key: string]: boolean}},
 		} = {}
-	): string[] | null {
+	): Promise<string[] | null> {
 		if (team && this.format.validateTeam) {
-			return this.format.validateTeam.call(this, team, options) || null;
+			return (await this.format.validateTeam.call(this, team, options)) || null;
 		}
-		return this.baseValidateTeam(team, options);
+		return await this.baseValidateTeam(team, options);
 	}
 
-	baseValidateTeam(
+	async baseValidateTeam(
 		team: PokemonSet[] | null,
 		options: {
 			removeNicknames?: boolean,
 			skipSets?: {[name: string]: {[key: string]: boolean}},
 		} = {}
-	): string[] | null {
+	): Promise<string[] | null> {
 		const format = this.format;
 		const dex = this.dex;
 
@@ -262,7 +262,7 @@ export class TeamValidator {
 					teamHas[i] = (teamHas[i] || 0) + 1;
 				}
 			} else {
-				setProblems = (format.validateSet || this.validateSet).call(this, set, teamHas);
+				setProblems = await (format.validateSet || this.validateSet).call(this, set, teamHas);
 			}
 
 			if (set.species === 'Pikachu-Starter' || set.species === 'Eevee-Starter') {
@@ -304,18 +304,18 @@ export class TeamValidator {
 			if ('!+-'.includes(rule.charAt(0))) continue;
 			const subformat = dex.getFormat(rule);
 			if (subformat.onValidateTeam && ruleTable.has(subformat.id)) {
-				problems = problems.concat(subformat.onValidateTeam.call(this, team, format, teamHas) || []);
+				problems = problems.concat(await subformat.onValidateTeam.call(this, team, format, teamHas) || []);
 			}
 		}
 		if (format.onValidateTeam) {
-			problems = problems.concat(format.onValidateTeam.call(this, team, format, teamHas) || []);
+			problems = problems.concat(await format.onValidateTeam.call(this, team, format, teamHas) || []);
 		}
 
 		if (!problems.length) return null;
 		return problems;
 	}
 
-	validateSet(set: PokemonSet, teamHas: AnyObject): string[] | null {
+	async validateSet(set: PokemonSet, teamHas: AnyObject): Promise<string[] | null> {
 		const format = this.format;
 		const dex = this.dex;
 		const ruleTable = this.ruleTable;
@@ -398,7 +398,7 @@ export class TeamValidator {
 		ability = dex.getAbility(set.ability);
 
 		let outOfBattleTemplate = template;
-		const learnsetTemplate = dex.getLearnsetData(outOfBattleTemplate.speciesid);
+		const learnsetTemplate = await dex.getLearnsetData(outOfBattleTemplate.speciesid);
 		let tierTemplate = template;
 		if (ability.id === 'battlebond' && template.id === 'greninja') {
 			outOfBattleTemplate = dex.getTemplate('greninjaash');
@@ -595,7 +595,7 @@ export class TeamValidator {
 					if (setSources.sources.length > 1) {
 						problems.push(`${name} has an event-exclusive move that it doesn't qualify for (only one of several ways to get the move will be listed):`);
 					}
-					const eventProblems = this.validateSource(
+					const eventProblems = await this.validateSource(
 						set, nonEggSource, setSources, outOfBattleTemplate, ` because it has a move only available`
 					);
 					if (eventProblems) problems.push(...eventProblems);
@@ -606,7 +606,7 @@ export class TeamValidator {
 				outOfBattleTemplate.baseSpecies !== outOfBattleTemplate.species ?
 				dex.getTemplate(outOfBattleTemplate.baseSpecies) : outOfBattleTemplate;
 			const eventData = learnsetTemplate.eventData ||
-				dex.getLearnsetData(eventTemplate.id).eventData;
+				(await dex.getLearnsetData(eventTemplate.id)).eventData;
 			if (!eventData) throw new Error(`Event-only template ${template.species} has no eventData table`);
 			let legal = false;
 			for (const event of eventData) {
@@ -691,11 +691,11 @@ export class TeamValidator {
 			if ('!+-'.includes(rule.charAt(0))) continue;
 			const subformat = dex.getFormat(rule);
 			if (subformat.onValidateSet && ruleTable.has(subformat.id)) {
-				problems = problems.concat(subformat.onValidateSet.call(this, set, format, setHas, teamHas) || []);
+				problems = problems.concat(await subformat.onValidateSet.call(this, set, format, setHas, teamHas) || []);
 			}
 		}
 		if (format.onValidateSet) {
-			problems = problems.concat(format.onValidateSet.call(this, set, format, setHas, teamHas) || []);
+			problems = problems.concat(await format.onValidateSet.call(this, set, format, setHas, teamHas) || []);
 		}
 
 		if (!problems.length) {
@@ -913,18 +913,18 @@ export class TeamValidator {
 		return true;
 	}
 
-	validateSource(
+	async validateSource(
 		set: PokemonSet, source: PokemonSource, setSources: PokemonSources, template: Template, because: string
-	): string[] | undefined;
-	validateSource(
+	): Promise<string[] | undefined>;
+	async validateSource(
 		set: PokemonSet, source: PokemonSource, setSources: PokemonSources, template: Template
-	): true | undefined;
+	): Promise<true | undefined>;
 	/**
 	 * Returns array of error messages if invalid, undefined if valid
 	 *
 	 * If `because` is not passed, instead returns true if invalid.
 	 */
-	validateSource(
+	async validateSource(
 		set: PokemonSet, source: PokemonSource, setSources: PokemonSources, template: Template, because?: string
 	) {
 		let eventData: EventInfo | undefined;
@@ -933,7 +933,7 @@ export class TeamValidator {
 			const splitSource = source.substr(source.charAt(2) === 'T' ? 3 : 2).split(' ');
 			const dex = (this.dex.gen === 1 ? Dex.mod('gen2') : this.dex);
 			eventTemplate = dex.getTemplate(splitSource[1]);
-			const eventLsetData = this.dex.getLearnsetData(eventTemplate.speciesid);
+			const eventLsetData = await this.dex.getLearnsetData(eventTemplate.speciesid);
 			eventData = eventLsetData.eventData?.[parseInt(splitSource[0])];
 			if (!eventData) {
 				throw new Error(`${eventTemplate.species} from ${template.species} doesn't have data for event ${source}`);
@@ -978,9 +978,9 @@ export class TeamValidator {
 		return this.validateEvent(set, eventData, eventTemplate, because as any) as any;
 	}
 
-	findEggMoveFathers(source: PokemonSource, template: Template, setSources: PokemonSources): boolean;
-	findEggMoveFathers(source: PokemonSource, template: Template, setSources: PokemonSources, getAll: true): ID[] | null;
-	findEggMoveFathers(source: PokemonSource, template: Template, setSources: PokemonSources, getAll = false) {
+	async findEggMoveFathers(source: PokemonSource, template: Template, setSources: PokemonSources): Promise<boolean>;
+	async findEggMoveFathers(source: PokemonSource, template: Template, setSources: PokemonSources, getAll: true): Promise<ID[] | null>;
+	async findEggMoveFathers(source: PokemonSource, template: Template, setSources: PokemonSources, getAll = false) {
 		// tradebacks have an eggGen of 2 even though the source is 1ET
 		const eggGen = Math.max(parseInt(source.charAt(0)), 2);
 		const fathers: ID[] = [];
@@ -1015,7 +1015,7 @@ export class TeamValidator {
 		// try to find a father to inherit the egg move combination from
 		for (const fatherid in dex.data.Pokedex) {
 			const father = dex.getTemplate(fatherid);
-			const fatherLsetData = dex.getLearnsetData(fatherid as ID);
+			const fatherLsetData = await dex.getLearnsetData(fatherid as ID);
 			// can't inherit from CAP pokemon
 			if (father.isNonstandard) continue;
 			// can't breed mons from future gens
@@ -1057,8 +1057,8 @@ export class TeamValidator {
 	 * `eggGen` should be 5 or earlier. Later gens should never call this
 	 * function (the answer is always yes).
 	 */
-	fatherCanLearn(template: Template, moves: ID[], eggGen: number) {
-		let lsetData = this.dex.getLearnsetData(template.speciesid);
+	async fatherCanLearn(template: Template, moves: ID[], eggGen: number) {
+		let lsetData = await this.dex.getLearnsetData(template.speciesid);
 		if (!lsetData.learnset) return false;
 		if (template.id === 'smeargle') return true;
 		let eggMoveCount = 0;
@@ -1069,7 +1069,7 @@ export class TeamValidator {
 			let canLearn: 0 | 1 | 2 = 0;
 
 			while (curTemplate) {
-				lsetData = this.dex.getLearnsetData(curTemplate.id);
+				lsetData = await this.dex.getLearnsetData(curTemplate.id);
 				if (lsetData.learnset && lsetData.learnset[move]) {
 					for (const moveSource of lsetData.learnset[move]) {
 						if (parseInt(moveSource.charAt(0)) > eggGen) continue;
@@ -1657,12 +1657,12 @@ export class TeamValidator {
 		return problems.length ? problems : null;
 	}
 
-	checkLearnset(
+	async checkLearnset(
 		move: Move,
 		species: Template,
 		setSources = this.allSources(species),
 		set: AnyObject = {}
-	): {type: string, [key: string]: any} | null {
+	): Promise<{type: string, [key: string]: any} | null> {
 		const dex = this.dex;
 		if (!setSources.size()) throw new Error(`Bad sources passed to checkLearnset`);
 
@@ -1706,7 +1706,7 @@ export class TeamValidator {
 		while (template?.species && !alreadyChecked[template.speciesid]) {
 			alreadyChecked[template.speciesid] = true;
 			if (dex.gen <= 2 && template.gen === 1) tradebackEligible = true;
-			const lsetData = dex.getLearnsetData(template.speciesid);
+			const lsetData = await dex.getLearnsetData(template.speciesid);
 			if (!lsetData.learnset) {
 				if (template.baseSpecies !== template.species) {
 					// forme without its own learnset

@@ -345,7 +345,7 @@ export const commands: ChatCommands = {
 	],
 };
 
-function runDexsearch(target: string, cmd: string, canAll: boolean, message: string) {
+async function runDexsearch(target: string, cmd: string, canAll: boolean, message: string) {
 	const searches: DexOrGroup[] = [];
 	const allTiers: {[k: string]: string} = Object.assign(Object.create(null), {
 		uber: 'Uber', ubers: 'Uber', ou: 'OU',
@@ -807,7 +807,7 @@ function runDexsearch(target: string, cmd: string, canAll: boolean, message: str
 					!format.banlist.includes(dex[mon].species) &&
 					!format.banlist.includes(dex[mon].species + "-Base")
 				) {
-					const lsetData = Dex.getLearnsetData(dex[mon].speciesid);
+					const lsetData = await Dex.getLearnsetData(dex[mon].speciesid);
 					if (lsetData.exists && lsetData.eventData && lsetData.eventOnly) {
 						let validEvents = 0;
 						for (const event of lsetData.eventData) {
@@ -1856,7 +1856,7 @@ function runItemsearch(target: string, cmd: string, canAll: boolean, message: st
 	return {reply: resultsStr};
 }
 
-function runLearn(target: string, cmd: string, canAll: boolean, message: string) {
+async function runLearn(target: string, cmd: string, canAll: boolean, message: string) {
 	let format: Format = Object.create(null);
 	const targets = target.split(',');
 	const gens: {[k: string]: number} = {rby: 1, gsc: 2, adv: 3, dpp: 4, bw2: 5, oras: 6, usum: 7};
@@ -1936,7 +1936,7 @@ function runLearn(target: string, cmd: string, canAll: boolean, message: string)
 		if (move.gen > gen) {
 			return {error: `${move.name} didn't exist yet in generation ${gen}.`};
 		}
-		const checkLsetProblem = validator.checkLearnset(move, template, setSources, set);
+		const checkLsetProblem = await validator.checkLearnset(move, template, setSources, set);
 		if (checkLsetProblem !== null && Object.keys(checkLsetProblem).length) {
 			lsetProblem = Object.create(null);
 			for (const i in checkLsetProblem) {
@@ -1953,7 +1953,7 @@ function runLearn(target: string, cmd: string, canAll: boolean, message: string)
 	if (lsetProblems) problems.push(...lsetProblems);
 	let sources: string[] = setSources.sources.map(source => {
 		if (source.charAt(1) !== 'E') return source;
-		const fathers = validator.findEggMoveFathers(source, template, setSources, true);
+		const fathers = validator.findEggMoveFathers(source, template, setSources, true); // FIXME
 		if (!fathers) return '';
 		return source + ':' + fathers.join(',');
 	}).filter(Boolean);

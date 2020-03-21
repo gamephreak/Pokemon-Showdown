@@ -39,13 +39,13 @@ import {QueryProcessManager} from '../lib/process-manager';
 
 export const PM = new QueryProcessManager<{
 	formatid: string, options?: {removeNicknames?: boolean}, team: string,
-}>(module, message => {
+}>(module, async message => {
 	const {formatid, options, team} = message;
 	const parsedTeam = Dex.fastUnpackTeam(team);
 
 	let problems;
 	try {
-		problems = TeamValidator.get(formatid).validateTeam(parsedTeam, options);
+		problems = await TeamValidator.get(formatid).validateTeam(parsedTeam, options);
 	} catch (err) {
 		crashlogger(err, 'A team validation', {
 			formatid,

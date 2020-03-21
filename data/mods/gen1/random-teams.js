@@ -4,7 +4,7 @@ const RandomGen2Teams = require('../gen2/random-teams');
 
 class RandomGen1Teams extends RandomGen2Teams {
 	// Challenge Cup or CC teams are basically fully random teams.
-	randomCCTeam() {
+	async randomCCTeam() {
 		let team = [];
 
 		/**@type {{[k: string]: number}} */
@@ -25,7 +25,7 @@ class RandomGen1Teams extends RandomGen2Teams {
 		for (let id in this.dex.data.Pokedex) {
 			if (!(this.dex.data.Pokedex[id].num in hasDexNumber)) continue;
 			let template = this.dex.getTemplate(id);
-			let lsetData = this.dex.getLearnsetData(/** @type {ID} */ (id));
+			let lsetData = await this.dex.getLearnsetData(/** @type {ID} */ (id));
 			if (!lsetData.learnset || template.forme) continue;
 			formes[hasDexNumber[template.num]].push(template.species);
 			if (++formeCounter >= 6) {
@@ -38,7 +38,7 @@ class RandomGen1Teams extends RandomGen2Teams {
 			// Choose forme.
 			let poke = this.sample(formes[i]);
 			let template = this.dex.getTemplate(poke);
-			let lsetData = this.dex.getLearnsetData(template.speciesid);
+			let lsetData = await this.dex.getLearnsetData(template.speciesid);
 
 			// Level balance: calculate directly from stats rather than using some silly lookup table.
 			let mbstmin = 1307;

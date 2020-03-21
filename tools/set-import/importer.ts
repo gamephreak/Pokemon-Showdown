@@ -222,7 +222,7 @@ async function importSmogonSets(
 	}
 }
 
-function addSmogonSet(
+async function addSmogonSet(
 	dex: ModdedDex,
 	format: Format,
 	pokemon: string,
@@ -231,7 +231,7 @@ function addSmogonSet(
 	setsForPokemon: PokemonSets,
 	numByFormat: {[format: string]: number}
 ) {
-	if (validSet('smogon.com/dex', dex, format, pokemon, name, set)) {
+	if (await validSet('smogon.com/dex', dex, format, pokemon, name, set)) {
 		setsForPokemon[pokemon] = setsForPokemon[pokemon] || {};
 		setsForPokemon[pokemon][name] = set;
 		numByFormat[format.id] = (numByFormat[format.id] || 0) + 1;
@@ -274,19 +274,19 @@ function fixedAbility(dex: ModdedDex, pokemon: string, ability?: string) {
 	return template.abilities[0];
 }
 
-function validSet(
+async function validSet(
 	source: string, dex: ModdedDex, format: Format, pokemon: string, name: string, set: DeepPartial<PokemonSet>
 ) {
 	if (skip(dex, format, pokemon, set)) return false;
 
 	const pset = toPokemonSet(dex, format, pokemon, set);
-	let invalid = VALIDATORS.get(format.id)!.validateSet(pset, {});
+	let invalid = await VALIDATORS.get(format.id)!.validateSet(pset, {});
 	if (!invalid) return true;
 	// Correct invalidations where set is required to be shiny due to an event
 	if (invalid.length === 1 && invalid[0].includes('must be shiny')) {
 		set.shiny = true;
 		pset.shiny = true;
-		invalid = VALIDATORS.get(format.id)!.validateSet(pset, {});
+		invalid = await VALIDATORS.get(format.id)!.validateSet(pset, {});
 		if (!invalid) return true;
 	}
 	// Allow Gen 4 Arceus sets because they're occasionally useful for tournaments
@@ -549,7 +549,7 @@ async function importThirdPartySets(
 
 			for (const name in json[mon]) {
 				const set = fixThirdParty(dex, pokemon, json[mon][name]);
-				if (validSet(source, dex, format, pokemon, name, set)) {
+				if (await validSet(source, dex, format, pokemon, name, set)) {
 					sets[pokemon] = sets[pokemon] || {};
 					sets[pokemon][cleanName(name)] = set;
 					num++;
