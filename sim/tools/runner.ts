@@ -101,6 +101,7 @@ export class Runner {
 		for await (const chunk of streams.omniscient) {
 			if (this.output) console.log(chunk);
 		}
+		fs.writeFileSync(`logs/merged.json`, JSON.stringify(STATE, null, 2));
 		return streams.omniscient.writeEnd();
 	}
 
@@ -169,37 +170,92 @@ class DualStream {
 	}
 
 	write(message: string) {
+		this.compare();
 		this.control._write(message);
 		this.test._write(message);
-		this.compare();
 	}
 
 	writeEnd() {
-		// We need to compare first because _writeEnd() destroys the battle object.
-		this.compare(true);
+		this.compare();
 		this.control._writeEnd();
 		this.test._writeEnd();
 	}
 
-	compare(end?: boolean) {
+	compare() {
 		if (!this.control.battle || !this.test.battle) return;
+		merge(STATE, this.control.battle.toJSON());
+	}
+}
 
-		const control = this.control.battle.toJSON();
-		const test = this.test.battle.toJSON();
-		try {
-			assert.deepEqual(State.normalize(test), State.normalize(control));
-		} catch (err) {
-			if (this.debug) {
-				// NOTE: diffing these directly won't work because the key ordering isn't stable.
-				fs.writeFileSync('logs/control.json', JSON.stringify(control, null, 2));
-				fs.writeFileSync('logs/test.json', JSON.stringify(test, null, 2));
+const STATE = {} as any;
+
+function combine(a: number, b: number) {
+	if (a % b) return !(b % a) ? b : a * b;
+	return a;
+}
+
+function merge(a: AnyObject, b: AnyObject, typed = false) {
+	for (const key in b) {
+		const types = typed ? b[key] : toTypes(b[key]);
+
+		if (!a[key]) {
+			a[key] = types;
+		} else if (typeof types === 'number') {
+			if (typeof a[key] === 'number') {
+				a[key] = combine(a[key], types);
+			} else {
+				if (!a['_']) {
+					a['_'] = types;
+					continue;
+				}
+				a['_'] = combine(a['_'], types);
 			}
-			throw new Error(err.message);
+		} else {
+			if (typeof a[key] === 'object') {
+				merge(a[key], types, true);
+			} else {
+				if (!b['_']) {
+					b['_'] = a[key];
+					a[key] = types;
+					continue;
+				}
+				b['_'] = combine(b['_'], a[key]);
+				a[key] = types;
+			}
 		}
+	}
+}
 
-		if (end) return;
-		const send = this.test.battle.send;
-		this.test.battle = Battle.fromJSON(test);
-		this.test.battle.restart(send);
+function toTypes(obj: unknown) {
+	switch (typeof obj) {
+	case 'boolean':
+			return 3;
+	case 'number':
+			return 5;
+	case 'string':
+		return 7;
+	case 'object':
+		if (obj === null) return 11;
+		if (Array.isArray(obj)) {
+			const o: any = {};
+			for (const a of obj) {
+				const t = toTypes(a);
+				if (typeof t === 'object') {
+					merge(o, t, true);
+				} else {
+					if (!o['_']) {
+						o['_'] = t;
+						continue;
+					}
+					o['_'] = combine(o['_'], t);
+				}
+			}
+			return {0: o};
+		}
+		const o: any = {};
+		for (const [key, value] of Object.entries(obj)) {
+			o[key] = toTypes(value);
+		}
+		return o;
 	}
 }

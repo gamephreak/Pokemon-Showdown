@@ -171,7 +171,8 @@ export function getPlayerStreams(stream: BattleStream) {
 		}),
 	};
 	(async () => {
-		for await (const chunk of stream) {
+		let chunk;
+		while ((chunk = await stream.read())) {
 			const [type, data] = splitFirst(chunk, `\n`);
 			switch (type) {
 			case 'update':
