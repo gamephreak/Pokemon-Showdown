@@ -180,9 +180,6 @@ export const commands: ChatCommands = {
 		} else {
 			this.checkCan('makeroom');
 		}
-		if (room.tour && !room.tour.modjoin) {
-			return this.errorReply(`You can't do this in tournaments where modjoin is prohibited.`);
-		}
 		if (target === 'player') target = Users.PLAYER_SYMBOL;
 		if (this.meansNo(target)) {
 			if (!room.settings.modjoin) return this.errorReply(`Modjoin is already turned off in this room.`);
@@ -231,27 +228,6 @@ export const commands: ChatCommands = {
 	modjoinhelp: [
 		`/modjoin [+|%|@|*|player|&|#|off] - Sets modjoin. Users lower than the specified rank can't join this room unless they have a room rank. Requires: \u2606 # &`,
 		`/modjoin [sync|off] - Sets modjoin. Only users who can speak in modchat can join this room. Requires: \u2606 # &`,
-	],
-
-	roomlanguage(target, room, user) {
-		room = this.requireRoom();
-		if (!target) {
-			return this.sendReply(`This room's primary language is ${Chat.languages.get(room.settings.language || '') || 'English'}`);
-		}
-		this.checkCan('editroom', null, room);
-
-		const targetLanguage = toID(target);
-		if (!Chat.languages.has(targetLanguage)) return this.errorReply(`"${target}" is not a supported language.`);
-
-		room.settings.language = targetLanguage === 'english' ? false : targetLanguage;
-
-		room.saveSettings();
-		this.modlog(`LANGUAGE`, null, Chat.languages.get(targetLanguage));
-		this.sendReply(`The room's language has been set to ${Chat.languages.get(targetLanguage)}`);
-	},
-	roomlanguagehelp: [
-		`/roomlanguage [language] - Sets the the language for the room, which changes language of a few commands. Requires # &`,
-		`Supported Languages: English, Spanish, Italian, French, Simplified Chinese, Traditional Chinese, Japanese, Hindi, Turkish, Dutch, German.`,
 	],
 
 	slowchat(target, room, user) {
@@ -926,9 +902,6 @@ export const commands: ChatCommands = {
 	renamegroupchat: 'renameroom',
 	async renameroom(target, room, user, connection, cmd) {
 		room = this.requireRoom();
-		if (room.game || room.minorActivity || room.tour) {
-			return this.errorReply("Cannot rename room while a tour/poll/game is running.");
-		}
 		if (room.battle) {
 			return this.errorReply("Cannot rename battle rooms.");
 		}
@@ -985,9 +958,6 @@ export const commands: ChatCommands = {
 			this.checkCan('editprivacy', null, room);
 			if (room.battle.forcePublic) {
 				return this.errorReply(`This battle is required to be public because a player has a name prefixed by '${room.battle.forcePublic}'.`);
-			}
-			if (room.tour?.forcePublic) {
-				return this.errorReply(`This battle can't be hidden, because the tournament is set to be forced public.`);
 			}
 		} else if (room.settings.isPersonal) {
 			this.checkCan('editroom', null, room);
@@ -1113,29 +1083,6 @@ export const commands: ChatCommands = {
 			this.addModAction(`${user.name} made this chat room official.`);
 			this.modlog('OFFICIALROOM');
 			room.settings.isOfficial = true;
-			room.saveSettings();
-		}
-	},
-
-	psplwinnerroom(target, room, user) {
-		this.checkCan('makeroom');
-		room = this.requireRoom();
-		if (!room.persist) {
-			return this.errorReply(`/psplwinnerroom - This room can't be marked as a PSPL Winner room`);
-		}
-		if (this.meansNo(target)) {
-			if (!room.settings.pspl) return this.errorReply(`This chat room is already not a PSPL Winner room.`);
-			delete room.settings.pspl;
-			this.addModAction(`${user.name} made this chat room no longer a PSPL Winner room.`);
-			this.modlog('PSPLROOM');
-			delete room.settings.pspl;
-			room.saveSettings();
-		} else {
-			if (room.settings.pspl) return this.errorReply("This chat room is already a PSPL Winner room.");
-			room.settings.pspl = true;
-			this.addModAction(`${user.name} made this chat room a PSPL Winner room.`);
-			this.modlog('UNPSPLROOM');
-			room.settings.pspl = true;
 			room.saveSettings();
 		}
 	},
@@ -1444,51 +1391,6 @@ export const commands: ChatCommands = {
 	removeroomaliashelp: [
 		`/removeroomalias [alias] - removes the given room alias of the room the command was entered in. Requires: &`,
 	],
-
-	resettierdisplay: 'roomtierdisplay',
-	roomtierdisplay(target, room, user, connection, cmd) {
-		room = this.requireRoom();
-		const resetTier = cmd === 'resettierdisplay';
-		if (!target) {
-			if (!this.runBroadcast()) return;
-			return this.sendReplyBox(
-				`This room is currently displaying ${room.settings.dataCommandTierDisplay} as the tier when using /data.`
-			);
-		}
-		this.checkCan('declare', null, room);
-
-		const displayIDToName: {[k: string]: Room['settings']['dataCommandTierDisplay']} = {
-			tiers: 'tiers',
-			doublestiers: 'doubles tiers',
-			numbers: 'numbers',
-		};
-
-		if (!resetTier) {
-			if (!(toID(target) in displayIDToName)) {
-				this.errorReply(`Invalid tier display: ${target.trim()}`);
-				return this.parse(`/help roomtierdisplay`);
-			}
-
-			room.settings.dataCommandTierDisplay = displayIDToName[toID(target)];
-			this.sendReply(`(The room's tier display is now: ${displayIDToName[toID(target)]})`);
-
-			this.privateModAction(`${user.name} changed the room's tier display to: ${displayIDToName[toID(target)]}.`);
-			this.modlog('ROOMTIERDISPLAY', null, `to ${displayIDToName[toID(target)]}`);
-		} else {
-			room.settings.dataCommandTierDisplay = 'tiers';
-			this.sendReply(`(The room's tier display is now: tiers)`);
-
-			this.privateModAction(`${user.name} reset the room's tier display.`);
-			this.modlog('RESETTIERDISPLAY', null, `to tiers`);
-		}
-
-		room.saveSettings();
-	},
-	roomtierdisplayhelp: [
-		`/roomtierdisplay - displays the current room's display.`,
-		`/roomtierdisplay [option] - changes the current room's tier display. Valid options are: tiers, doubles tiers, numbers. Requires: # &`,
-		`/resettierdisplay - resets the current room's tier display. Requires: # &`,
-	],
 };
 
 export const roomSettings: SettingsHandler[] = [
@@ -1513,13 +1415,6 @@ export const roomSettings: SettingsHandler[] = [
 			// first rank is for modjoin off
 			...RANKS.slice(1, room.settings.isPersonal && !user.can('makeroom') ? 2 : undefined),
 		].map(rank => [rank, rank === (room.settings.modjoin || 'off') || `modjoin ${rank || 'off'}`]),
-	}),
-	room => ({
-		label: "Language",
-		permission: 'editroom',
-		options: [...Chat.languages].map(
-			([id, name]) => [name, id === (room.settings.language || 'english') || `roomlanguage ${id || 'off'}`]
-		),
 	}),
 	room => ({
 		label: "Stretch filter",
@@ -1551,15 +1446,6 @@ export const roomSettings: SettingsHandler[] = [
 		options: ['off', 5, 10, 20, 30, 60].map(
 			time => [`${time}`, time === (room.settings.slowchat || 'off') || `slowchat ${time || 'off'}`]
 		),
-	}),
-	room => ({
-		label: "/data Tier display",
-		permission: 'editroom',
-		options: [
-			[`tiers`, (room.settings.dataCommandTierDisplay ?? 'tiers') === 'tiers' || `roomtierdisplay tiers`],
-			[`doubles tiers`, room.settings.dataCommandTierDisplay === 'doubles tiers' || `roomtierdisplay doubles tiers`],
-			[`numbers`, room.settings.dataCommandTierDisplay === 'numbers' || `roomtierdisplay numbers`],
-		],
 	}),
 	room => ({
 		label: "/requestshow",

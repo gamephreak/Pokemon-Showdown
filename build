@@ -47,16 +47,6 @@ function replace(file, replacements) {
 		}
 	});
 }
-function copyOverDataJSON(file) {
-	var source = './data/' + file;
-	var dest = './.data-dist/' + file;
-	fs.readFile(source, function (err, text) {
-		if (err) throw err;
-		fs.writeFile(dest, text, function (err) {
-			if (err) throw err;
-		});
-	});
-}
 
 try {
 	var sucraseVersion = require('sucrase').getVersion().split('.');
@@ -112,19 +102,7 @@ function sucrase(src, out, opts) {
 
 if (sucrase('./config', './.config-dist')) {
 	replace('.config-dist', [
-		{regex: /(require\(.*?)(lib|sim)/g, replace: `$1.$2-dist`},
-	]);
-}
-
-if (sucrase('./data', './.data-dist')) {
-	replace('.data-dist', [
-		{regex: /(require\(.*?)(lib|sim)/g, replace: `$1.$2-dist`},
-	]);
-}
-
-if (sucrase('./sim', './.sim-dist')) {
-	replace('.sim-dist', [
-		{regex: /(require\(.*?)(lib)/g, replace: `$1.lib-dist`},
+		{regex: /(require\(.*?)(lib)/g, replace: `$1.$2-dist`},
 	]);
 }
 
@@ -132,15 +110,7 @@ sucrase('./lib', './.lib-dist');
 
 if (sucrase('./server', './.server-dist')) {
 	replace('.server-dist', [
-		{regex: /(require\(.*?)(lib|sim)/g, replace: `$1.$2-dist`},
-	]);
-}
-
-sucrase('./translations', './.translations-dist');
-
-if (sucrase('./tools/set-import', './tools/set-import', '--exclude-dirs=sets')) {
-	replace('./tools/set-import/importer.js', [
-		{regex: /(require\(.*?)(lib|sim)/g, replace: `$1.$2-dist`},
+		{regex: /(require\(.*?)(lib)/g, replace: `$1.$2-dist`},
 	]);
 }
 
@@ -150,23 +120,14 @@ if (sucrase('./tools/modlog', './tools/modlog')) {
 	]);
 }
 
-if (!fs.existsSync('./.data-dist/README.md')) {
-	const text = '**NOTE**: This folder contains the compiled output of the `data/` directory.\n' +
+if (!fs.existsSync('./.server-dist/README.md')) {
+	const text = '**NOTE**: This folder contains the compiled output of the `server/` directory.\n' +
 		'You should be editing the `.ts` files there and then running `npm run build` or\n' +
 		'`./pokemon-showdown` to force these `.js` files to be recreated.\n';
-	fs.writeFile('./.config-dist/README.md', text.replace('data/', 'config/'), function () {});
-	fs.writeFile('./.data-dist/README.md', text, function () {});
-	fs.writeFile('./.sim-dist/README.md', text.replace('data/', 'sim/'), function () {});
-	fs.writeFile('./.server-dist/README.md', text.replace('data/', 'server/'), function () {});
-	fs.writeFile('./.translations-dist/README.md', text.replace('data/', 'translations/'), function () {});
-	fs.writeFile('./.lib-dist/README.md', text.replace('data/', 'lib/'), function () {});
+	fs.writeFile('./.config-dist/README.md', text.replace('server/', 'config/'), function () {});
+	fs.writeFile('./.server-dist/README.md', text.replace('server/', 'server/'), function () {});
+	fs.writeFile('./.lib-dist/README.md', text.replace('server/', 'lib/'), function () {});
 }
-
-// sucrase doesn't copy JSON over, so we'll have to do it ourselves
-copyOverDataJSON('cap-1v1-sets.json');
-copyOverDataJSON('mods/gen7/factory-sets.json');
-copyOverDataJSON('mods/gen7/bss-factory-sets.json');
-copyOverDataJSON('mods/gen6/factory-sets.json');
 
 // NOTE: replace is asynchronous - add additional replacements for the same path in one call instead of making multiple calls.
 

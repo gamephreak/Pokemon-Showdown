@@ -44,32 +44,6 @@
  * @license MIT
  */
 
-// NOTE: This file intentionally doesn't use too many modern JavaScript
-// features, so that it doesn't crash old versions of Node.js, so we
-// can successfully print the "We require Node.js 8+" message.
-
-// Check for version and dependencies
-try {
-	// I've gotten enough reports by people who don't use the launch
-	// script that this is worth repeating here
-	[].flatMap(x => x);
-} catch (e) {
-	throw new Error("We require Node.js version 12 or later; you're using " + process.version);
-}
-
-try {
-	require.resolve('../.sim-dist/index');
-	const sucraseVersion = require('sucrase').getVersion().split('.');
-	if (
-		parseInt(sucraseVersion[0]) < 3 ||
-		(parseInt(sucraseVersion[0]) === 3 && parseInt(sucraseVersion[1]) < 12)
-	) {
-		throw new Error("Sucrase version too old");
-	}
-} catch (e) {
-	throw new Error("Dependencies are unmet; run `node build` before launching Pokemon Showdown again.");
-}
-
 import {FS} from '../lib/fs';
 
 /*********************************************************
@@ -101,7 +75,7 @@ if (Config.watchconfig) {
  * Set up most of our globals
  *********************************************************/
 
-import {Dex} from '../sim/dex';
+import {Dex} from '@pkmn/sim';
 global.Dex = Dex;
 global.toID = Dex.toID;
 
@@ -128,9 +102,6 @@ Rooms.global = new Rooms.GlobalRoomState();
 import * as Verifier from './verifier';
 global.Verifier = Verifier;
 Verifier.PM.spawn();
-
-import {Tournaments} from './tournaments';
-global.Tournaments = Tournaments;
 
 import {IPTools} from './ip-tools';
 global.IPTools = IPTools;

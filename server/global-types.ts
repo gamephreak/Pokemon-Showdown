@@ -1,5 +1,8 @@
 /* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-shadow */
 
+type ID = import('@pkmn/sim').ID;
+interface AnyObject {[key: string]: any}
+
 type Config = typeof import('../config/config-example') & AnyObject;
 
 type GroupSymbol = import('./user-groups').GroupSymbol;
@@ -59,12 +62,12 @@ namespace Rooms {
 // Streams
 // (I don't understand why eslint only has a problem with this - it's used in room-battle)
 namespace Streams {
-	export type WriteStream = import('../lib/streams').WriteStream;
-	export type ReadStream = import('../lib/streams').ReadStream;
-	export type ReadWriteStream = import('../lib/streams').ReadWriteStream;
-	export type ObjectWriteStream<T> = import('../lib/streams').ObjectWriteStream<T>;
-	export type ObjectReadStream<T> = import('../lib/streams').ObjectReadStream<T>;
-	export type ObjectReadWriteStream<T> = import('../lib/streams').ObjectReadWriteStream<T>;
+	export type WriteStream = import('@pkmn/sim').Streams.WriteStream;
+	export type ReadStream = import('@pkmn/sim').Streams.ReadStream;
+	export type ReadWriteStream = import('@pkmn/sim').Streams.ReadWriteStream;
+	export type ObjectWriteStream<T> = import('@pkmn/sim').Streams.ObjectWriteStream<T>;
+	export type ObjectReadStream<T> = import('@pkmn/sim').Streams.ObjectReadStream<T>;
+	export type ObjectReadWriteStream<T> = import('@pkmn/sim').Streams.ObjectReadWriteStream<T>;
 }
 
 // Users

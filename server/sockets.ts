@@ -19,7 +19,7 @@ import {crashlogger} from '../lib/crashlogger';
 import {RawProcessManager, StreamWorker} from '../lib/process-manager';
 import {IPTools} from './ip-tools';
 import {Repl} from '../lib/repl';
-import * as Streams from './../lib/streams';
+import {Streams} from '@pkmn/sim';
 
 type ChannelID = 0 | 1 | 2 | 3 | 4;
 
@@ -161,13 +161,6 @@ export class ServerStream extends Streams.ObjectReadWriteStream<string> {
 
 		this.isTrustedProxyIp = config.proxyip ? IPTools.checker(config.proxyip) : () => false;
 
-		// Static HTTP server
-
-		// This handles the custom CSS and custom avatar features, and also
-		// redirects yourserver:8001 to yourserver-8001.psim.us
-
-		// It's optional if you don't need these features.
-
 		this.server = http.createServer();
 		this.serverSsl = null;
 		if (config.ssl) {
@@ -212,53 +205,6 @@ export class ServerStream extends Streams.ObjectReadWriteStream<string> {
 				} catch (e) {
 					crashlogger(new Error(`The SSL settings are misconfigured:\n${e.stack}`), `Socket process ${process.pid}`);
 				}
-			}
-		}
-
-		// Static server
-		try {
-			if (config.disablenodestatic) throw new Error("disablenodestatic");
-			const StaticServer: typeof import('node-static').Server = require('node-static').Server;
-			const roomidRegex = /^\/(?:[A-Za-z0-9][A-Za-z0-9-]*)\/?$/;
-			const cssServer = new StaticServer('./config');
-			const avatarServer = new StaticServer('./config/avatars');
-			const staticServer = new StaticServer('./server/static');
-			const staticRequestHandler = (req: http.IncomingMessage, res: http.ServerResponse) => {
-				// console.log(`static rq: ${req.socket.remoteAddress}:${req.socket.remotePort} -> ${req.socket.localAddress}:${req.socket.localPort} - ${req.method} ${req.url} ${req.httpVersion} - ${req.rawHeaders.join('|')}`);
-				req.resume();
-				req.addListener('end', () => {
-					if (config.customhttpresponse &&
-							config.customhttpresponse(req, res)) {
-						return;
-					}
-
-					let server = staticServer;
-					if (req.url) {
-						if (req.url === '/custom.css') {
-							server = cssServer;
-						} else if (req.url.startsWith('/avatars/')) {
-							req.url = req.url.substr(8);
-							server = avatarServer;
-						} else if (roomidRegex.test(req.url)) {
-							req.url = '/';
-						}
-					}
-
-					server.serve(req, res, e => {
-						if (e && (e as any).status === 404) {
-							staticServer.serveFile('404.html', 404, {}, req, res);
-						}
-					});
-				});
-			};
-
-			this.server.on('request', staticRequestHandler);
-			if (this.serverSsl) this.serverSsl.on('request', staticRequestHandler);
-		} catch (e) {
-			if (e.message === 'disablenodestatic') {
-				console.log('node-static is disabled');
-			} else {
-				console.log('Could not start node-static - try `npm install` if you want to use it');
 			}
 		}
 
@@ -307,7 +253,7 @@ export class ServerStream extends Streams.ObjectReadWriteStream<string> {
 			console.log(`Worker ${PM.workerid} now listening for SSL on port ${config.ssl.port}`);
 		}
 
-		console.log(`Test your server at http://${config.bindaddress === '0.0.0.0' ? 'localhost' : config.bindaddress}:${config.port}`);
+		console.log(`Test your server at http://localhost.psim.us`);
 	}
 
 	extractChannel(message: string, channelid: -1 | ChannelID) {
@@ -352,6 +298,7 @@ export class ServerStream extends Streams.ObjectReadWriteStream<string> {
 	}
 
 	onConnection(socket: import('sockjs').Connection) {
+		console.log('CONNECTION', socket);
 		// For reasons that are not entirely clear, SockJS sometimes triggers
 		// this event with a null `socket` argument.
 		if (!socket) return;
@@ -409,7 +356,7 @@ export class ServerStream extends Streams.ObjectReadWriteStream<string> {
 	}
 
 	_write(data: string) {
-		// console.log('worker received: ' + data);
+		console.log('worker received: ' + data);
 		let socket: import('sockjs').Connection | undefined = undefined;
 		let socketid = '';
 		let room: Map<string, import('sockjs').Connection> | undefined = undefined;

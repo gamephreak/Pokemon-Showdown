@@ -1,14 +1,9 @@
-/**
- * Net - abstraction layer around Node's HTTP/S request system.
- * Advantages:
- * - easier acquiring of data
- * - mass disabling of outgoing requests via Config.
- */
+// TODO XXX FIXME DELETE
 
 import * as https from 'https';
 import * as http from 'http';
 import * as url from 'url';
-import * as Streams from './streams';
+import {Streams} from '@pkmn/sim';
 
 export interface PostData {
 	[key: string]: string | number;

@@ -17,6 +17,8 @@ New sections will be added to the bottom of the specified column.
 The column value will be ignored for repeat sections.
 */
 
+import {FormatList, StatName, Species, TeamValidator} from '@pkmn/sim';
+
 export const Formats: FormatList = [
 
 	// Sw/Sh Singles
@@ -1307,9 +1309,6 @@ export const Formats: FormatList = [
 			}
 			const customRules = this.format.customRules || [];
 			if (!customRules.includes('!obtainableabilities')) customRules.push('!obtainableabilities');
-
-			const TeamValidator: typeof import('../sim/team-validator').TeamValidator =
-				require('../sim/team-validator').TeamValidator;
 
 			const validator = new TeamValidator(dex.getFormat(`${this.format.id}@@@${customRules.join(',')}`));
 			const moves = set.moves;

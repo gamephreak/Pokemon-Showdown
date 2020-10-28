@@ -16,7 +16,7 @@ import {FS} from "../lib/fs";
 import {Utils} from '../lib/utils';
 import {StreamProcessManager} from "../lib/process-manager";
 import {Repl} from "../lib/repl";
-import {BattleStream} from "../sim/battle-stream";
+import {BattleStreams, SideID, Battle, GameTimerSettings} from "@pkmn/sim";
 import * as RoomGames from "./room-game";
 
 type ChannelIndex = 0 | 1 | 2 | 3 | 4;
@@ -193,7 +193,7 @@ export class RoomBattleTimer {
 		this.lastDisabledByUser = null;
 
 		const hasLongTurns = Dex.getFormat(battle.format, true).gameType !== 'singles';
-		const isChallenge = (!battle.rated && !battle.room.tour);
+		const isChallenge = !battle.rated;
 		const timerEntry = Dex.getRuleTable(Dex.getFormat(battle.format, true)).timer;
 		const timerSettings = timerEntry?.[0];
 
@@ -550,8 +550,6 @@ export class RoomBattle extends RoomGames.RoomGame {
 		}
 		if (this.rated) {
 			ratedMessage = 'Rated battle';
-		} else if (this.room.tour) {
-			ratedMessage = 'Tournament battle';
 		}
 
 		this.room.battle = this;
@@ -689,8 +687,8 @@ export class RoomBattle extends RoomGames.RoomGame {
 	}
 	leaveGame(user: User) {
 		if (!user) return false; // ...
-		if (this.room.rated || this.room.tour) {
-			user.popup(`Players can't be swapped out in a ${this.room.tour ? "tournament" : "rated"} battle.`);
+		if (this.room.rated) {
+			user.popup(`Players can't be swapped out in a rated battle.`);
 			return false;
 		}
 		const player = this.playerTable[user.id];
@@ -1156,7 +1154,7 @@ export class RoomBattle extends RoomGames.RoomGame {
 	}
 }
 
-export class RoomBattleStream extends BattleStream {
+export class RoomBattleStream extends BattleStreams.BattleStream {
 	readonly battle: Battle;
 	constructor() {
 		super({keepAlive: true});
@@ -1267,7 +1265,7 @@ if (!PM.isParentProcess) {
 	// This is a child process!
 	global.Config = require('./config-loader').Config;
 	global.Chat = require('./chat').Chat;
-	global.Dex = require('../sim/dex').Dex;
+	global.Dex = require('@pkmn/sim').Dex;
 	global.Monitor = {
 		crashlog(error: Error, source = 'A simulator process', details: AnyObject | null = null) {
 			const repr = JSON.stringify([error.name, error.message, source, details]);

@@ -5,7 +5,7 @@
 // Simply doing `require('../build')` here doesn't work because the `replace`
 // step of the build is asynchronous and we can't wait for it to finish easily
 // unless we shell out and use `execSync`. However, the heuristic of simply
-// checking for the presence of  './.sim-dist/dex' to determine whether a build
+// checking for the presence of  './.server-dist/index' to determine whether a build
 // is required is somewhat risky as it only is valid from a clean repository -
 // if you make edits or have previous build artifacts lying arround, this
 // script could potentially be missing additional sources or the compiled output
@@ -20,13 +20,6 @@ var built = false;
 function build() {
 	require('child_process').execSync('node build', {stdio: 'inherit', cwd: __dirname});
 	built = true;
-}
-
-try {
-	require.resolve('./.sim-dist/dex');
-} catch (err) {
-	if (err.code !== 'MODULE_NOT_FOUND') throw err; // should never happen
-	build();
 }
 
 if (!process.argv[2] || /^[0-9]+$/.test(process.argv[2])) {
@@ -96,7 +89,7 @@ if (!process.argv[2] || /^[0-9]+$/.test(process.argv[2])) {
 		}
 	case 'generate-team':
 		{
-			var Dex = require('./.sim-dist/dex').Dex;
+			var Dex = require('@pkmn/sim').Dex;
 			global.toID = Dex.getId;
 			var seed = process.argv[4] ? process.argv[4].split(',').map(Number) : undefined;
 			console.log(Dex.packTeam(Dex.generateTeam(process.argv[3], {seed})));
@@ -104,11 +97,11 @@ if (!process.argv[2] || /^[0-9]+$/.test(process.argv[2])) {
 		break;
 	case 'validate-team':
 		{
-			var Dex = require('./.sim-dist/dex').Dex;
+			var Dex = require('@pkmn/sim').Dex;
 			global.toID = Dex.getId;
-			var TeamValidator = require('./.sim-dist/team-validator').TeamValidator;
+			var TeamValidator = require('@pkmn/sim').TeamValidator;
 			var validator = TeamValidator.get(process.argv[3]);
-			var Streams = require('./.lib-dist/streams');
+			var Streams = require('@pkmn/sim').Streams;
 			var stdin = new Streams.ReadStream(process.stdin);
 
 			stdin.readLine().then(function (textTeam) {
@@ -129,8 +122,8 @@ if (!process.argv[2] || /^[0-9]+$/.test(process.argv[2])) {
 		break;
 	case 'simulate-battle':
 		{
-			var BattleTextStream = require('./.sim-dist/battle-stream').BattleTextStream;
-			var Streams = require('./.lib-dist/streams');
+			var BattleTextStream = require('@pkmn/sim').BattleTextStream;
+			var Streams = require('@pkmn/sim').Streams;
 			var stdin = new Streams.ReadStream(process.stdin);
 			var stdout = new Streams.WriteStream(process.stdout);
 
@@ -180,8 +173,8 @@ if (!process.argv[2] || /^[0-9]+$/.test(process.argv[2])) {
 		break;
 	case 'unpack-team':
 		{
-			var Dex = require('./.sim-dist/dex').Dex;
-			var Streams = require('./.lib-dist/streams');
+			var Dex = require('@pkmn/sim').Dex;
+			var Streams = require('@pkmn/sim').Streams;
 			var stdin = new Streams.ReadStream(process.stdin);
 
 			stdin.readLine().then(function (packedTeam) {
@@ -198,8 +191,8 @@ if (!process.argv[2] || /^[0-9]+$/.test(process.argv[2])) {
 		break;
 	case 'pack-team':
 		{
-			var Dex = require('./.sim-dist/dex').Dex;
-			var Streams = require('./.lib-dist/streams');
+			var Dex = require('@pkmn/sim').Dex;
+			var Streams = require('@pkmn/sim').Streams;
 			var stdin = new Streams.ReadStream(process.stdin);
 
 			stdin.readLine().then(function (unpackedTeam) {

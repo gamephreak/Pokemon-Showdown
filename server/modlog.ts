@@ -359,7 +359,7 @@ export const PM = new QueryProcessManager<ModlogQuery, ModlogResult[]>(module, a
 
 if (!PM.isParentProcess) {
 	global.Config = require('./config-loader').Config;
-	global.toID = require('../sim/dex').Dex.toID;
+	global.toID = require('@pkmn/sim').toID;
 
 	global.Monitor = {
 		crashlog(error: Error, source = 'A modlog process', details: AnyObject | null = null) {

@@ -8,7 +8,7 @@
  */
 
 import {crashlogger} from '../lib/crashlogger';
-import {TeamValidator} from '../sim/team-validator';
+import {TeamValidator, Format} from '@pkmn/sim';
 
 export class TeamValidatorAsync {
 	format: Format;
@@ -89,7 +89,7 @@ if (!PM.isParentProcess) {
 		});
 	}
 
-	global.Dex = require('../sim/dex').Dex.includeData();
+	global.Dex = require('@pkmn/sim').Dex;
 
 	// eslint-disable-next-line no-eval
 	require('../lib/repl').Repl.start(`team-validator-${process.pid}`, (cmd: string) => eval(cmd));

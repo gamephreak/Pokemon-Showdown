@@ -1,10 +1,8 @@
 'use strict';
 
-/** @type {typeof import('../lib/streams').ObjectReadWriteStream} */
-const ObjectReadWriteStream = require('../.lib-dist/streams').ObjectReadWriteStream;
+const {Streams} = require('@pkmn/sim');
 
-/** @extends {ObjectReadWriteStream<string>} */
-class WorkerStream extends ObjectReadWriteStream {
+class WorkerStream extends Streams.ObjectReadWriteStream {
 	constructor(id) {
 		super();
 		this.id = id;

@@ -1,29 +1,8 @@
-/**
- * FS
- * Pokemon Showdown - http://pokemonshowdown.com/
- *
- * An abstraction layer around Node's filesystem.
- *
- * Advantages:
- * - write() etc do nothing in unit tests
- * - paths are always relative to PS's base directory
- * - Promises (seriously wtf Node Core what are you thinking)
- * - PS-style API: FS("foo.txt").write("bar") for easier argument order
- * - mkdirp
- *
- * FS is used nearly everywhere, but exceptions include:
- * - crashlogger.js - in case the crash is in here
- * - repl.js - which use Unix sockets out of this file's scope
- * - launch script - happens before modules are loaded
- * - sim/ - intended to be self-contained
- *
- * @author Guangcong Luo <guangcongluo@gmail.com>
- * @license MIT
- */
+// TODO XXX FIXME DELETE
 
 import * as fs from 'fs';
 import * as pathModule from 'path';
-import {ReadStream, WriteStream} from './streams';
+import {Streams} from '@pkmn/sim';
 
 const ROOT_PATH = pathModule.resolve(__dirname, '..');
 
@@ -286,24 +265,24 @@ export class FSPath {
 		return new FileReadStream(this.path);
 	}
 
-	createWriteStream(options = {}): WriteStream {
+	createWriteStream(options = {}): Streams.WriteStream {
 		if (Config.nofswriting) {
 			// @ts-ignore
-			return new WriteStream({write() {}});
+			return new Streams.WriteStream({write() {}});
 		}
 		// @ts-ignore
-		return new WriteStream(fs.createWriteStream(this.path, options));
+		return new Streams.WriteStream(fs.createWriteStream(this.path, options));
 	}
 
-	createAppendStream(options = {}): WriteStream {
+	createAppendStream(options = {}): Streams.WriteStream {
 		if (Config.nofswriting) {
 			// @ts-ignore
-			return new WriteStream({write() {}});
+			return new Streams.WriteStream({write() {}});
 		}
 		// @ts-ignore
 		options.flags = options.flags || 'a';
 		// @ts-ignore
-		return new WriteStream(fs.createWriteStream(this.path, options));
+		return new Streams.WriteStream(fs.createWriteStream(this.path, options));
 	}
 
 	unlinkIfExists() {
@@ -449,7 +428,7 @@ export class FSPath {
 	}
 }
 
-class FileReadStream extends ReadStream {
+class FileReadStream extends Streams.ReadStream {
 	fd: Promise<number>;
 
 	constructor(file: string) {

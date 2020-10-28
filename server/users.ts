@@ -1215,13 +1215,6 @@ export class User extends Chat.MessageContext {
 				return false;
 			}
 		}
-		if ((room as GameRoom).tour) {
-			const errorMessage = (room as GameRoom).tour!.onBattleJoin(room as GameRoom, this);
-			if (errorMessage) {
-				connection.sendTo(roomid, `|noinit|joinfailed|${errorMessage}`);
-				return false;
-			}
-		}
 		if (room.settings.isPrivate) {
 			if (!this.named) {
 				return Rooms.RETRY_AFTER_LOGIN;

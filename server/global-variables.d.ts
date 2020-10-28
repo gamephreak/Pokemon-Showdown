@@ -12,9 +12,8 @@ import {Ladders as LaddersType} from './ladders';
 import {LoginServer as LoginServerType} from './loginserver';
 import {Monitor as MonitorType} from './monitor';
 import {Punishments as PunishmentsType} from './punishments';
-import {Tournaments as TournamentsType} from './tournaments';
 
-import {Dex as DexType} from '../sim/dex';
+import {Dex as DexType} from '@pkmn/sim';
 
 declare global {
 	namespace NodeJS {
@@ -49,7 +48,6 @@ declare global {
 	const Rooms: typeof RoomsType.Rooms;
 	const Sockets: typeof SocketsType.Sockets;
 	const TeamValidatorAsync: typeof TeamValidatorAsyncType;
-	const Tournaments: typeof TournamentsType;
 	const Users: typeof UsersType.Users;
 	const Verifier: typeof VerifierType;
 	const toID: typeof DexType.toID;

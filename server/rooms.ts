@@ -28,11 +28,7 @@ const RETRY_AFTER_LOGIN = null;
 
 import {FS} from '../lib/fs';
 import {Utils} from '../lib/utils';
-import {WriteStream} from '../lib/streams';
-import {GTSGiveaway, LotteryGiveaway, QuestionGiveaway} from './chat-plugins/wifi';
-import {QueuedHunt} from './chat-plugins/scavengers';
-import {ScavengerGameTemplate} from './chat-plugins/scavenger-games';
-import {RepeatedPhrase} from './chat-plugins/repeats';
+import {Streams} from '@pkmn/sim';
 import {PM as RoomBattlePM, RoomBattle, RoomBattlePlayer, RoomBattleTimer} from "./room-battle";
 import {RoomGame, RoomGamePlayer} from './room-game';
 import {Roomlogs} from './roomlogs';
@@ -89,33 +85,21 @@ export interface RoomSettings {
 	staffRoom?: boolean;
 	language?: ID | false;
 	slowchat?: number | false;
-	events?: {[k: string]: RoomEvent | RoomEventAlias | RoomEventCategory};
 	filterStretching?: boolean;
 	filterEmojis?: boolean;
 	filterCaps?: boolean;
-	jeopardyDisabled?: boolean;
-	mafiaDisabled?: boolean;
-	unoDisabled?: boolean;
-	blackjackDisabled?: boolean;
-	hangmanDisabled?: boolean;
 	tourAnnouncements?: boolean;
 	gameNumber?: number;
 	highTraffic?: boolean;
 	isOfficial?: boolean;
-	pspl?: boolean;
 	parentid?: string | null;
 	desc?: string | null;
 	introMessage?: string | null;
 	staffMessage?: string | null;
 	rulesLink?: string | null;
-	dataCommandTierDisplay?: 'tiers' | 'doubles tiers' | 'numbers';
 	requestShowEnabled?: boolean | null;
 	showEnabled?: GroupSymbol | true;
 	permissions?: {[k: string]: GroupSymbol};
-	repeats?: RepeatedPhrase[];
-
-	scavSettings?: AnyObject;
-	scavQueue?: QueuedHunt[];
 
 	// should not ever be saved because they're inapplicable to persistent rooms
 	/** This includes groupchats, battles, and help-ticket rooms. */
@@ -126,10 +110,6 @@ export interface RoomSettings {
 	isMultichannel?: boolean;
 }
 export type Room = GameRoom | ChatRoom;
-import type {Poll} from './chat-plugins/poll';
-import type {Announcement} from './chat-plugins/announcements';
-import type {RoomEvent, RoomEventAlias, RoomEventCategory} from './chat-plugins/room-events';
-import type {Tournament} from './tournaments/index';
 
 export abstract class BasicRoom {
 	roomid: RoomID;
@@ -156,12 +136,6 @@ export abstract class BasicRoom {
 	 * In all other rooms, `this.battle` is `null`.
 	 */
 	battle: RoomBattle | null;
-	/**
-	 * The game room's current tournament. If the room is a battle room whose
-	 * battle is part of a tournament, `this.tour === this.parent.game`.
-	 * In all other rooms, `this.tour` is `null`.
-	 */
-	tour: Tournament | null;
 
 	auth: RoomAuth;
 	parent: Room | null;
@@ -178,10 +152,6 @@ export abstract class BasicRoom {
 	/** If true, this room's settings will be saved in config/chatrooms.json, allowing it to stay past restarts. */
 	persist: boolean;
 
-	scavgame: ScavengerGameTemplate | null;
-	scavLeaderboard: AnyObject;
-	giveaway?: QuestionGiveaway | LotteryGiveaway | null;
-	gtsga?: GTSGiveaway | null;
 	privacySetter?: Set<ID> | null;
 	hideReplay: boolean;
 
@@ -189,8 +159,6 @@ export abstract class BasicRoom {
 	batchJoins: number;
 	reportJoinsInterval: NodeJS.Timer | null;
 
-	minorActivity: Poll | Announcement | null;
-	minorActivityQueue: Poll[] | null;
 	banwordRegex: RegExp | true | null;
 	logUserStatsInterval: NodeJS.Timer | null;
 	expireTimer: NodeJS.Timer | null;
@@ -205,7 +173,6 @@ export abstract class BasicRoom {
 		this.battle = null;
 		this.game = null;
 		this.subGame = null;
-		this.tour = null;
 
 		this.roomid = roomid;
 		this.title = (title || roomid);
@@ -232,8 +199,6 @@ export abstract class BasicRoom {
 		this.persist = false;
 		this.hideReplay = false;
 		this.subRooms = null;
-		this.scavgame = null;
-		this.scavLeaderboard = {};
 		this.auth = new RoomAuth(this);
 
 		this.reportJoins = true;
@@ -256,8 +221,6 @@ export abstract class BasicRoom {
 
 		if (!options.isPersonal) this.persist = true;
 
-		this.minorActivity = null;
-		this.minorActivityQueue = null;
 		if (options.parentid) {
 			const parent = Rooms.get(options.parentid);
 
@@ -287,7 +250,6 @@ export abstract class BasicRoom {
 			this.userList = this.getUserList();
 		}
 		this.pendingApprovals = null;
-		this.tour = null;
 		this.game = null;
 		this.battle = null;
 		this.validateTitle(this.title, this.roomid);
@@ -343,8 +305,7 @@ export abstract class BasicRoom {
 		return this;
 	}
 	modlog(entry: ModlogEntry) {
-		const override = this.tour ? `${this.roomid} tournament: ${this.tour.roomid}` : undefined;
-		this.log.modlog(entry, override);
+		this.log.modlog(entry);
 		return this;
 	}
 	uhtmlchange(name: string, message: string) {
@@ -775,7 +736,6 @@ export abstract class BasicRoom {
 			connection,
 			'|init|chat\n|title|' + this.title + '\n' + userList + '\n' + this.log.getScrollback() + this.getIntroMessage(user)
 		);
-		if (this.minorActivity) this.minorActivity.onConnect(user, connection);
 		if (this.game && this.game.onConnect) this.game.onConnect(user, connection);
 	}
 	onJoin(user: User, connection: Connection) {
@@ -792,7 +752,6 @@ export abstract class BasicRoom {
 		this.users[user.id] = user;
 		this.userCount++;
 
-		if (this.minorActivity) this.minorActivity.onConnect(user, connection);
 		if (this.game && this.game.onJoin) this.game.onJoin(user, connection);
 		return true;
 	}
@@ -816,9 +775,6 @@ export abstract class BasicRoom {
 			this.reportJoin('l', oldid, user);
 		} else {
 			this.reportJoin('n', user.getIdentityWithStatus(this.roomid) + '|' + oldid, user);
-		}
-		if (this.minorActivity && 'voters' in this.minorActivity) {
-			if (user.id in this.minorActivity.voters) this.minorActivity.updateFor(user);
 		}
 		return true;
 	}
@@ -853,12 +809,6 @@ export abstract class BasicRoom {
 
 	destroy(): void {
 		// deallocate ourself
-
-		if (this.battle && this.tour) {
-			// resolve state of the tournament;
-			if (!this.battle.ended) this.tour.onBattleWin(this as any as GameRoom, '');
-			this.tour = null;
-		}
 
 		// remove references to ourself
 		for (const i in this.users) {
@@ -929,7 +879,7 @@ export class GlobalRoomState {
 	 * Rooms that users autojoin upon logging in
 	 */
 	readonly modjoinedAutojoinList: RoomID[];
-	readonly ladderIpLog: WriteStream;
+	readonly ladderIpLog: Streams.WriteStream;
 	readonly reportUserStatsInterval: NodeJS.Timeout;
 	lockdown: boolean | 'pre' | 'ddos';
 	battleCount: number;
@@ -1011,7 +961,7 @@ export class GlobalRoomState {
 		} else {
 			// Prevent there from being two possible hidden classes an instance
 			// of GlobalRoom can have.
-			this.ladderIpLog = new WriteStream({write() { return undefined; }});
+			this.ladderIpLog = new Streams.WriteStream({write() { return undefined; }});
 		}
 		// Create writestream for modlog
 		Rooms.Modlog.initialize('global');
@@ -1172,7 +1122,6 @@ export class GlobalRoomState {
 			if (room.active && room.battle) {
 				if (room.battle.p1) roomData.p1 = room.battle.p1.name;
 				if (room.battle.p2) roomData.p2 = room.battle.p2.name;
-				if (room.tour) roomData.minElo = 'tour';
 				if (room.rated) roomData.minElo = Math.floor(room.rated);
 			}
 			if (!roomData.p1 || !roomData.p2) continue;
@@ -1539,8 +1488,7 @@ export class GameRoom extends BasicRoom {
 		this.format = options.format || '';
 		// console.log("NEW BATTLE");
 
-		this.tour = options.tour || null;
-		this.parent = options.parent || (this.tour && this.tour.room) || null;
+		this.parent = options.parent || null;
 
 		this.p1 = options.p1 || null;
 		this.p2 = options.p2 || null;
@@ -1755,11 +1703,9 @@ export const Rooms = {
 		// Special battles have modchat set to Player from the beginning
 		if (p1Special) room.settings.modchat = '\u2606';
 
-		let inviteOnly = false;
 		const privacySetter = new Set<ID>(options.inviteOnly || []);
 		for (const p of ['p1', 'p2', 'p3', 'p4']) {
 			if (options[`${p}inviteOnly`]) {
-				inviteOnly = true;
 				privacySetter.add(options[p].id);
 			} else if (options[`${p}hidden`]) {
 				privacySetter.add(options[p].id);
@@ -1771,14 +1717,6 @@ export const Rooms = {
 				room.settings.isPrivate = false;
 				room.settings.modjoin = null;
 				room.add(`|raw|<div class="broadcast-blue"><strong>This battle is required to be public due to a player having a name starting with '${battle.forcePublic}'.</div>`);
-			} else if (!options.tour || (room.tour && room.tour.modjoin)) {
-				room.settings.isPrivate = 'hidden';
-				if (inviteOnly) room.settings.modjoin = '%';
-				room.privacySetter = privacySetter;
-				if (inviteOnly) {
-					room.settings.modjoin = '%';
-					room.add(`|raw|<div class="broadcast-red"><strong>This battle is invite-only!</strong><br />Users must be invited with <code>/invite</code> (or be staff) to join</div>`);
-				}
 			}
 		}
 

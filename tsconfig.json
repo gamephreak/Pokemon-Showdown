@@ -15,15 +15,8 @@
     ],
     "include": [
         "./config/*.ts",
-        "./data/*",
-        "./data/text/*",
-        "./data/mods/*/*",
-        "./dev-tools/*.ts",
         "./lib/*",
         "./server/**/*.ts",
-        "./sim/**/*",
-        "./tools/set-import/*.ts",
         "./tools/modlog/*.ts",
-        "./translations/**/*.ts",
     ]
 }

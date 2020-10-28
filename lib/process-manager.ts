@@ -12,7 +12,7 @@
 import * as child_process from 'child_process';
 import * as cluster from 'cluster';
 import * as path from 'path';
-import * as Streams from './streams';
+import {Streams} from '@pkmn/sim';
 
 type ChildProcess = child_process.ChildProcess;
 type Worker = cluster.Worker;

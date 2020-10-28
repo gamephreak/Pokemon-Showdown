@@ -11,8 +11,6 @@
     "logs/",
     "node_modules/",
     ".*-dist/",
-    "tools/set-import/importer.js",
-    "tools/set-import/sets",
     "tools/modlog/converter.js",
     "server/global-variables.d.ts"
  ],
@@ -294,12 +292,6 @@
         // whitespace, overriding base
         "indent": "off",
         "@typescript-eslint/indent": ["error", "tab", {"flatTernaryExpressions": true}]
-      }
-    },
-    {
-      "files": ["./translations/**/*.ts"],
-      "rules": {
-        "no-template-curly-in-string": "off"
       }
     },
     {

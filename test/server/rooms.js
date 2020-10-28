@@ -18,20 +18,6 @@ describe('Rooms features', function () {
 		});
 	});
 
-	describe('BasicRoom', function () {
-		describe('getGame', function () {
-			it('should return the game only when the gameids match', function () {
-				const Hangman = require('../../.server-dist/chat-plugins/hangman').Hangman;
-				const UNO = require('../../.server-dist/chat-plugins/uno').UNO;
-				const room = Rooms.createChatRoom('r/relationshipadvice');
-				const game = new Hangman(room, new User(), 'There\'s a lot of red flags here');
-				room.game = game;
-				assert.equal(room.getGame(Hangman), game);
-				assert.equal(room.getGame(UNO), null);
-			});
-		});
-	});
-
 	describe('GameRoom', function () {
 		const packedTeam = 'Weavile||lifeorb||swordsdance,knockoff,iceshard,iciclecrash|Jolly|,252,,,4,252|||||';
 
@@ -59,59 +45,6 @@ describe('Rooms features', function () {
 				}, option));
 				assert(room.battle.p1 && room.battle.p2); // Automatically joined
 			}
-		});
-
-		it('should copy auth from tournament', function () {
-			parent = Rooms.createChatRoom('parentroom', '', {});
-			parent.auth.get = () => '%';
-			const p1 = new User();
-			const p2 = new User();
-			const options = {
-				p1,
-				p2,
-				p1team: packedTeam,
-				p2team: packedTeam,
-				rated: false,
-				auth: {},
-				tour: {
-					onBattleWin() {},
-					room: parent,
-				},
-			};
-			room = Rooms.createBattle('customgame', options);
-			assert.equal(room.auth.get(new User().id), '%');
-		});
-
-		it('should prevent overriding tournament room auth by a tournament player', function () {
-			parent = Rooms.createChatRoom('parentroom2', '', {});
-			parent.auth.get = () => '%';
-			const p1 = new User();
-			const p2 = new User();
-			const roomStaff = new User();
-			roomStaff.forceRename("Room auth", true);
-			const administrator = new User();
-			administrator.forceRename("Admin", true);
-			administrator.tempGroup = '~';
-			const options = {
-				p1,
-				p2,
-				p1team: packedTeam,
-				p2team: packedTeam,
-				rated: false,
-				auth: {},
-				tour: {
-					onBattleWin() {},
-					room: parent,
-				},
-			};
-			room = Rooms.createBattle('customgame', options);
-			roomStaff.joinRoom(room);
-			administrator.joinRoom(room);
-			assert.equal(room.auth.get(roomStaff), '%', 'before promotion attempt');
-			Chat.parse("/roomvoice Room auth", room, p1, p1.connections[0]);
-			assert.equal(room.auth.get(roomStaff), '%', 'after promotion attempt');
-			Chat.parse("/roomvoice Room auth", room, administrator, administrator.connections[0]);
-			assert.equal(room.auth.get(roomStaff), '%', 'after being promoted by an administrator');
 		});
 	});
 

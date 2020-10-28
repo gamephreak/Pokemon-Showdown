@@ -25,6 +25,7 @@ To reload chat commands:
 
 import type {RoomPermission, GlobalPermission} from './user-groups';
 import type {Punishment} from './punishments';
+import {Species, Ability, Move, Item} from '@pkmn/sim';
 
 export type PageHandler = (this: PageContext, query: string[], user: User, connection: Connection)
 => Promise<string | null | void> | string | null | void;
@@ -127,7 +128,6 @@ import ProbeModule = require('probe-image-size');
 const probe: (url: string) => Promise<{width: number, height: number}> = ProbeModule;
 
 const EMOJI_REGEX = /[\p{Emoji_Modifier_Base}\p{Emoji_Presentation}\uFE0F]/u;
-const TRANSLATION_DIRECTORY = `${__dirname}/../.translations-dist`;
 
 class PatternTester {
 	// This class sounds like a RegExp
@@ -1365,12 +1365,6 @@ export class CommandContext extends MessageContext {
 }
 
 export const Chat = new class {
-	constructor() {
-		void this.loadTranslations().then(() => {
-			Chat.translationsLoaded = true;
-		});
-	}
-	translationsLoaded = false;
 	/**
 	 * As per the node.js documentation at https://nodejs.org/api/timers.html#timers_settimeout_callback_delay_args,
 	 * timers with durations that are too long for a 32-bit signed integer will be invoked after 1 millisecond,
@@ -1519,99 +1513,10 @@ export const Chat = new class {
 	/*********************************************************
 	 * Translations
 	 *********************************************************/
-	/** language id -> language name */
-	readonly languages = new Map<ID, string>();
-	/** language id -> (english string -> translated string) */
-	readonly translations = new Map<ID, Map<string, [string, string[], string[]]>>();
-
-	async loadTranslations() {
-		const directories = await FS(TRANSLATION_DIRECTORY).readdir();
-
-		// ensure that english is the first entry when we iterate over Chat.languages
-		Chat.languages.set('english' as ID, 'English');
-		for (const dirname of directories) {
-			const dir = FS(`${TRANSLATION_DIRECTORY}/${dirname}`);
-			if (!dir.isDirectorySync()) continue;
-
-			// For some reason, toID() isn't available as a global when this executes.
-			const languageID = Dex.toID(dirname);
-			const files = await dir.readdir();
-			for (const filename of files) {
-				if (!filename.endsWith('.js')) continue;
-
-				const content: Translations = require(`${TRANSLATION_DIRECTORY}/${dirname}/${filename}`).translations;
-
-				if (!Chat.translations.has(languageID)) {
-					Chat.translations.set(languageID, new Map());
-				}
-				const translationsSoFar = Chat.translations.get(languageID)!;
-
-				if (content.name && !Chat.languages.has(languageID)) {
-					Chat.languages.set(languageID, content.name);
-				}
-
-				if (content.strings) {
-					for (const key in content.strings) {
-						const keyLabels: string[] = [];
-						const valLabels: string[] = [];
-						const newKey = key.replace(/\${.+?}/g, str => {
-							keyLabels.push(str);
-							return '${}';
-						}).replace(/\[TN: ?.+?\]/g, '');
-						const val = content.strings[key].replace(/\${.+?}/g, (str: string) => {
-							valLabels.push(str);
-							return '${}';
-						}).replace(/\[TN: ?.+?\]/g, '');
-						translationsSoFar.set(newKey, [val, keyLabels, valLabels]);
-					}
-				}
-			}
-			if (!Chat.languages.has(languageID)) {
-				// Fallback in case no translation files provide the language's name
-				Chat.languages.set(languageID, "Unknown Language");
-			}
-		}
-	}
-	tr(language: ID | null): (fStrings: TemplateStringsArray | string, ...fKeys: any) => string;
-	tr(language: ID | null, strings: TemplateStringsArray | string, ...keys: any[]): string;
 	tr(language: ID | null, strings: TemplateStringsArray | string = '', ...keys: any[]) {
-		if (!language) language = 'english' as ID;
 		// If strings is an array (normally the case), combine before translating.
 		const trString = Array.isArray(strings) ? strings.join('${}') : strings as string;
-
-		if (!Chat.translations.has(language)) {
-			if (!Chat.translationsLoaded) return trString;
-			throw new Error(`Trying to translate to a nonexistent language: ${language}`);
-		}
-		if (!strings.length) {
-			return ((fStrings: TemplateStringsArray | string, ...fKeys: any) => Chat.tr(language, fStrings, ...fKeys));
-		}
-
-		const entry = Chat.translations.get(language)!.get(trString);
-		let [translated, keyLabels, valLabels] = entry || ["", [], []];
-		if (!translated) translated = trString;
-
-		// Replace the gaps in the species string
-		if (keys.length) {
-			let reconstructed = '';
-
-			const left: (string | null)[] = keyLabels.slice();
-			for (const [i, str] of translated.split('${}').entries()) {
-				reconstructed += str;
-				if (keys[i]) {
-					let index = left.indexOf(valLabels[i]);
-					if (index < 0) {
-						index = left.findIndex(val => !!val);
-					}
-					if (index < 0) index = i;
-					reconstructed += keys[index];
-					left[index] = null;
-				}
-			}
-
-			translated = reconstructed;
-		}
-		return translated;
+		return trString;
 	}
 
 	readonly MessageContext = MessageContext;
@@ -1739,22 +1644,6 @@ export const Chat = new class {
 
 		// Install plug-in commands and chat filters
 
-		// All resulting filenames will be relative to basePath
-		const getFiles = (basePath: string, path: string): string[] => {
-			const filesInThisDir = FS(`${basePath}/${path}`).readdirSync();
-			let allFiles: string[] = [];
-			for (const file of filesInThisDir) {
-				const fileWithPath = path + (path ? '/' : '') + file;
-				if (FS(`${basePath}/${fileWithPath}`).isDirectorySync()) {
-					if (file.startsWith('.')) continue;
-					allFiles = allFiles.concat(getFiles(basePath, fileWithPath));
-				} else {
-					allFiles.push(fileWithPath);
-				}
-			}
-			return allFiles;
-		};
-
 		Chat.commands = Object.create(null);
 		Chat.pages = Object.create(null);
 		const coreFiles = FS('server/chat-commands').readdirSync();
@@ -1768,20 +1657,6 @@ export const Chat = new class {
 
 		// Load filters from Config
 		this.loadPluginData(Config, 'config');
-		this.loadPluginData(Tournaments, 'tournaments');
-
-		let files = FS('server/chat-plugins').readdirSync();
-		try {
-			if (FS('server/chat-plugins/private').isDirectorySync()) {
-				files = files.concat(getFiles('server/chat-plugins', 'private'));
-			}
-		} catch (err) {
-			if (err.code !== 'ENOENT') throw err;
-		}
-
-		for (const file of files) {
-			this.loadPlugin(`chat-plugins/${file}`);
-		}
 		Chat.oldPlugins = {};
 	}
 	destroy() {

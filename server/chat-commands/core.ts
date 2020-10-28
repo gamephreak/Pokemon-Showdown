@@ -755,27 +755,6 @@ export const commands: ChatCommands = {
 		`/showrank - Displays your true global rank instead of the rank you're hidden as.`,
 	],
 
-	language(target, room, user) {
-		if (!target) {
-			const language = Chat.languages.get(user.language || 'english' as ID);
-			return this.sendReply(this.tr`Currently, you're viewing Pokémon Showdown in ${language}.`);
-		}
-		const languageID = toID(target);
-		if (!Chat.languages.has(languageID)) {
-			const languages = [...Chat.languages.values()].join(', ');
-			return this.errorReply(this.tr`Valid languages are: ${languages}`);
-		}
-		user.language = languageID;
-		user.update();
-		const language = Chat.languages.get(languageID);
-		return this.sendReply(this.tr`Pokémon Showdown will now be displayed in ${language} (except in language rooms).`);
-	},
-	languagehelp: [
-		`/language - View your current language setting.`,
-		`/language [language] - Changes the language Pokémon Showdown will be displayed to you in.`,
-		`Note that rooms can set their own language, which will override this setting.`,
-	],
-
 	updatesettings(target, room, user) {
 		const settings: Partial<UserSettings> = {};
 		try {
@@ -923,51 +902,6 @@ export const commands: ChatCommands = {
 	},
 	importinputloghelp: [`/importinputlog [inputlog] - Starts a battle with a given inputlog. Requires: + % @ &`],
 
-	showteam: 'showset',
-	async showset(target, room, user, connection, cmd) {
-		this.checkChat();
-		const showAll = cmd === 'showteam';
-		const hideStats = toID(target) === 'hidestats';
-		room = this.requireRoom();
-		const battle = room.battle;
-		if (!showAll && !target) return this.parse(`/help showset`);
-		if (!battle) return this.errorReply(this.tr("This command can only be used in a battle."));
-		let teamStrings = await battle.getTeam(user);
-		if (!teamStrings) return this.errorReply(this.tr("Only players can extract their team."));
-		if (!showAll) {
-			const parsed = parseInt(target);
-			if (parsed > 6) return this.errorReply(this.tr`Use a number between 1-6 to view a specific set.`);
-			if (isNaN(parsed)) {
-				const matchedSet = teamStrings.filter(set => {
-					const id = toID(target);
-					return toID(set.name) === id || toID(set.species) === id;
-				})[0];
-				if (!matchedSet) return this.errorReply(this.tr`The Pokemon "${target}" is not in your team.`);
-				teamStrings = [matchedSet];
-			} else {
-				const setIndex = parsed - 1;
-				const indexedSet = teamStrings[setIndex];
-				if (!indexedSet) return this.errorReply(this.tr`That Pokemon is not in your team.`);
-				teamStrings = [indexedSet];
-			}
-		}
-		const nicknames = teamStrings.map(set => {
-			const species = Dex.getSpecies(set.species).baseSpecies;
-			return species !== set.name ? set.name : species;
-		});
-		let resultString = Dex.stringifyTeam(teamStrings, nicknames, hideStats);
-		if (showAll) {
-			resultString = `<details><summary>${this.tr`View team`}</summary>${resultString}</details>`;
-		}
-		this.runBroadcast(true);
-		return this.sendReplyBox(resultString);
-	},
-	showsethelp: [
-		`!showteam - show the team you're using in the current battle (must be used in a battle you're a player in).`,
-		`!showteam hidestats - show the team you're using in the current battle, without displaying any stat-related information.`,
-		`!showset [number] - shows the set of the pokemon corresponding to that number (in original Team Preview order, not necessarily current order)`,
-	],
-
 	acceptdraw: 'offertie',
 	accepttie: 'offertie',
 	offerdraw: 'offertie',
@@ -978,9 +912,6 @@ export const commands: ChatCommands = {
 		if (!battle) return this.errorReply(this.tr("Must be in a battle room."));
 		if (!Config.allowrequestingties) {
 			return this.errorReply(this.tr("This server does not allow offering ties."));
-		}
-		if (room.tour) {
-			return this.errorReply(this.tr("You can't offer ties in tournaments."));
 		}
 		if (battle.turn < 100) {
 			return this.errorReply(this.tr("It's too early to tie, please play until turn 100."));
@@ -1109,9 +1040,6 @@ export const commands: ChatCommands = {
 	hidereplay(target, room, user, connection) {
 		if (!room || !room.battle) return this.errorReply(`Must be used in a battle.`);
 		this.checkCan('joinbattle', null, room);
-		if (room.tour?.forcePublic) {
-			return this.errorReply(this.tr`This battle can't have hidden replays, because the tournament is set to be forced public.`);
-		}
 		if (room.hideReplay) return this.errorReply(this.tr`The replay for this battle is already set to hidden.`);
 		room.hideReplay = true;
 		// If a replay has already been saved, /savereplay again to update the uploaded replay's hidden status
